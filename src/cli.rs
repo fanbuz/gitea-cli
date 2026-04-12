@@ -56,6 +56,9 @@ pub enum Command {
     Me,
     Orgs(OrgsCommand),
     Repos(ReposCommand),
+    Releases(ReleasesCommand),
+    Tags(TagsCommand),
+    Commits(CommitsCommand),
     Issues(IssuesCommand),
     Pulls(PullsCommand),
     Actions(ActionsCommand),
@@ -96,6 +99,43 @@ pub enum ReposSubcommand {
     List(RepoListArgs),
     Branches(RepoTargetWithPageArgs),
     Tree(RepoTreeArgs),
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct ReleasesCommand {
+    #[command(subcommand)]
+    pub command: ReleasesSubcommand,
+}
+
+#[derive(Debug, Clone, Subcommand)]
+pub enum ReleasesSubcommand {
+    List(RepoTargetWithPageArgs),
+    Latest(RepoTargetArgs),
+    Get(ReleaseTargetArgs),
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct TagsCommand {
+    #[command(subcommand)]
+    pub command: TagsSubcommand,
+}
+
+#[derive(Debug, Clone, Subcommand)]
+pub enum TagsSubcommand {
+    List(RepoTargetWithPageArgs),
+    Get(TagTargetArgs),
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct CommitsCommand {
+    #[command(subcommand)]
+    pub command: CommitsSubcommand,
+}
+
+#[derive(Debug, Clone, Subcommand)]
+pub enum CommitsSubcommand {
+    List(CommitsListArgs),
+    Get(CommitTargetArgs),
 }
 
 #[derive(Debug, Clone, Args)]
@@ -219,6 +259,50 @@ pub struct RepoTreeArgs {
     pub page: u32,
     #[arg(long = "page-size", default_value_t = 100)]
     pub page_size: u32,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct ReleaseTargetArgs {
+    #[arg(long)]
+    pub owner: String,
+    #[arg(long)]
+    pub repo: String,
+    #[arg(long)]
+    pub id: u64,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct TagTargetArgs {
+    #[arg(long)]
+    pub owner: String,
+    #[arg(long)]
+    pub repo: String,
+    #[arg(long = "tag")]
+    pub tag_name: String,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct CommitTargetArgs {
+    #[arg(long)]
+    pub owner: String,
+    #[arg(long)]
+    pub repo: String,
+    #[arg(long)]
+    pub sha: String,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct CommitsListArgs {
+    #[arg(long)]
+    pub owner: String,
+    #[arg(long)]
+    pub repo: String,
+    #[arg(long)]
+    pub sha: Option<String>,
+    #[arg(long)]
+    pub path: Option<String>,
+    #[command(flatten)]
+    pub page: PageArgs,
 }
 
 #[derive(Debug, Clone, Args)]
@@ -352,6 +436,9 @@ pub fn plan_command(cli: &Cli) -> Result<PlannedCommand> {
             )),
         },
         Command::Repos(command) => plan_repos(command),
+        Command::Releases(command) => plan_releases(command),
+        Command::Tags(command) => plan_tags(command),
+        Command::Commits(command) => plan_commits(command),
         Command::Issues(command) => plan_issues(command),
         Command::Pulls(command) => plan_pulls(command),
         Command::Actions(command) => plan_actions(command),
@@ -458,6 +545,83 @@ fn plan_issues(command: &IssuesCommand) -> Result<PlannedCommand> {
                 Value::Object(params),
             ))
         }
+    }
+}
+
+fn plan_releases(command: &ReleasesCommand) -> Result<PlannedCommand> {
+    match &command.command {
+        ReleasesSubcommand::List(args) => Ok(PlannedCommand::tool_call(
+            "list_releases",
+            json!({
+                "owner": args.target.owner,
+                "repo": args.target.repo,
+                "page": args.page.page,
+                "perPage": args.page.page_size
+            }),
+        )),
+        ReleasesSubcommand::Latest(args) => Ok(PlannedCommand::tool_call(
+            "get_latest_release",
+            json!({
+                "owner": args.owner,
+                "repo": args.repo
+            }),
+        )),
+        ReleasesSubcommand::Get(args) => Ok(PlannedCommand::tool_call(
+            "get_release",
+            json!({
+                "owner": args.owner,
+                "repo": args.repo,
+                "id": args.id
+            }),
+        )),
+    }
+}
+
+fn plan_tags(command: &TagsCommand) -> Result<PlannedCommand> {
+    match &command.command {
+        TagsSubcommand::List(args) => Ok(PlannedCommand::tool_call(
+            "list_tags",
+            json!({
+                "owner": args.target.owner,
+                "repo": args.target.repo,
+                "page": args.page.page,
+                "perPage": args.page.page_size
+            }),
+        )),
+        TagsSubcommand::Get(args) => Ok(PlannedCommand::tool_call(
+            "get_tag",
+            json!({
+                "owner": args.owner,
+                "repo": args.repo,
+                "tag_name": args.tag_name
+            }),
+        )),
+    }
+}
+
+fn plan_commits(command: &CommitsCommand) -> Result<PlannedCommand> {
+    match &command.command {
+        CommitsSubcommand::List(args) => {
+            let mut params = Map::new();
+            params.insert("owner".to_string(), json!(args.owner));
+            params.insert("repo".to_string(), json!(args.repo));
+            params.insert("page".to_string(), json!(args.page.page));
+            params.insert("perPage".to_string(), json!(args.page.page_size));
+            insert_optional_string(&mut params, "sha", args.sha.as_deref());
+            insert_optional_string(&mut params, "path", args.path.as_deref());
+            Ok(PlannedCommand::tool_call(
+                "list_commits",
+                Value::Object(params),
+            ))
+        }
+        CommitsSubcommand::Get(args) => Ok(PlannedCommand::tool_call(
+            "get_commit",
+            json!({
+                "owner": args.owner,
+                "repo": args.repo,
+                "sha": args.sha
+            }),
+        )),
     }
 }
 

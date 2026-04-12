@@ -13,6 +13,7 @@
 - 本项目的 CLI 设计方式参考 OpenAI Codex 官方用例文档 [Create a CLI Codex can use](https://developers.openai.com/codex/use-cases/agent-friendly-clis)，重点放在 agent 友好的命令结构、稳定 JSON 输出、可脚本化和可验证性上。
 - `gitea-cli` 自己不直接实现 Gitea API，也不重复造一套鉴权；它会读取 `~/.codex/config.toml` 中的 `mcp_servers.gitea.command`，把底层 MCP 能力整理成更适合人类和 agent 使用的命令面。
 - 如果你使用的是官方 `gitea-mcp`，或本地已有 `gitea-mcp-server` 包装命令，只要该 MCP 配置可用，`gitea-cli` 就能直接复用。
+- 后续规划会补一层 `gitea-cli` 自己的独立配置文件，让它在保留 Codex 兼容能力的同时，也能直接适配官方 brew 安装的 `gitea-mcp-server`。
 
 ## Features
 
@@ -132,6 +133,33 @@ gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_
 - `gitea-cli --json repos tree --owner YOUR_ORG --repo YOUR_REPO --ref main --recursive`
   读取某个仓库在指定 `ref` 下的文件树，可选择递归展开。
 
+### Releases
+
+- `gitea-cli --json releases list --owner YOUR_ORG --repo YOUR_REPO`
+  列出某个仓库的 release 列表，适合做版本盘点和发版记录查询。
+
+- `gitea-cli --json releases latest --owner YOUR_ORG --repo YOUR_REPO`
+  读取某个仓库的最新 release，适合脚本里快速拿到最新发布版本。
+
+- `gitea-cli --json releases get --owner YOUR_ORG --repo YOUR_REPO --id 12`
+  按 release ID 读取单个 release 详情。
+
+### Tags
+
+- `gitea-cli --json tags list --owner YOUR_ORG --repo YOUR_REPO`
+  列出某个仓库的 tag，适合排查版本标记和发布点。
+
+- `gitea-cli --json tags get --owner YOUR_ORG --repo YOUR_REPO --tag v0.0.2`
+  按 tag 名读取单个 tag 详情。
+
+### Commits
+
+- `gitea-cli --json commits list --owner YOUR_ORG --repo YOUR_REPO`
+  列出某个仓库的提交历史，支持 `--sha`、`--path` 和分页参数做过滤。
+
+- `gitea-cli --json commits get --owner YOUR_ORG --repo YOUR_REPO --sha COMMIT_SHA`
+  按 commit SHA 读取单个提交详情。
+
 ### Issues
 
 - `gitea-cli --json issues list --owner YOUR_ORG --repo YOUR_REPO --state open`
@@ -206,8 +234,8 @@ gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_
 - [ ] 分支写操作
   暂未单独封装 `create branch`、`delete branch`。
 
-- [ ] Release / Tag / Commit
-  暂未单独封装 release、tag、commit 相关高层命令。
+- [x] Release / Tag / Commit
+  已提供 `releases list/latest/get`、`tags list/get`、`commits list/get`。
 
 - [ ] 文件与目录内容管理
   暂未单独封装文件读取、目录读取、创建文件、更新文件、删除文件等高层命令。
@@ -302,9 +330,12 @@ make install-local
 
 ## Roadmap
 
-- 补充 labels、milestones、releases、wiki 等高层命令
+- 补充 labels、milestones、wiki 等高层命令
 - 增加更完整的分页和过滤支持
 - 在未来引入写命令前补充更清晰的安全护栏
+- 增加 `gitea-cli` 独立配置层
+  计划支持 `~/.config/gitea-cli/config.toml` 一类的本地配置文件，并采用 `gitea-cli 自身配置 > ~/.codex/config.toml > 默认 gitea-mcp-server` 的回退顺序。
+  目标是让 `gitea-cli` 既能复用 Codex MCP 配置，也能在官方 `gitea-mcp-server` brew 安装场景下独立工作。
 
 ## Contributing
 
