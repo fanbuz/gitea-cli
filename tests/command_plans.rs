@@ -11,6 +11,11 @@ fn find_subcommand<'a>(command: &'a mut clap::Command, name: &str) -> &'a mut cl
     command.find_subcommand_mut(name).unwrap()
 }
 
+fn help_has_command_description(help: &str, command: &str, description: &str) -> bool {
+    help.lines()
+        .any(|line| line.contains(command) && line.contains(description))
+}
+
 #[test]
 fn issue_get_maps_to_issue_read() {
     let cli = Cli::try_parse_from([
@@ -355,9 +360,21 @@ fn commits_get_maps_to_get_commit() {
 fn top_level_help_includes_command_descriptions() {
     let help = render_help(Cli::command());
 
-    assert!(help.contains("doctor    检查 gitea-cli 与底层 Gitea MCP 配置是否可用"));
-    assert!(help.contains("issues    管理 issue、评论、labels 与 time tracking"));
-    assert!(help.contains("releases  查询仓库 release 列表、最新版本和单个 release"));
+    assert!(help_has_command_description(
+        &help,
+        "doctor",
+        "检查 gitea-cli 与底层 Gitea MCP 配置是否可用"
+    ));
+    assert!(help_has_command_description(
+        &help,
+        "issues",
+        "管理 issue、评论、labels 与 time tracking"
+    ));
+    assert!(help_has_command_description(
+        &help,
+        "releases",
+        "查询仓库 release 列表、最新版本和单个 release"
+    ));
 }
 
 #[test]
@@ -1028,4 +1045,606 @@ fn issues_time_help_includes_subcommand_descriptions() {
     assert!(time_help.contains("start            启动 issue stopwatch"));
     assert!(time_help.contains("reset-stopwatch  清空 issue stopwatch"));
     assert!(time_help.contains("delete           删除一条 issue time 记录"));
+}
+
+#[test]
+fn labels_repo_list_maps_to_label_read_list_repo_labels() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "labels",
+        "repo-list",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--page",
+        "2",
+        "--page-size",
+        "50",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "label_read",
+            serde_json::json!({
+                "method": "list_repo_labels",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "page": 2,
+                "perPage": 50
+            })
+        )
+    );
+}
+
+#[test]
+fn labels_repo_get_maps_to_label_read_get_repo_label() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "labels",
+        "repo-get",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--id",
+        "9",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "label_read",
+            serde_json::json!({
+                "method": "get_repo_label",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "id": 9
+            })
+        )
+    );
+}
+
+#[test]
+fn labels_repo_create_maps_to_label_write_create_repo_label() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "labels",
+        "repo-create",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--name",
+        "bug",
+        "--color",
+        "#ff0000",
+        "--description",
+        "important",
+        "--archived",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "label_write",
+            serde_json::json!({
+                "method": "create_repo_label",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "name": "bug",
+                "color": "#ff0000",
+                "description": "important",
+                "is_archived": true
+            })
+        )
+    );
+}
+
+#[test]
+fn labels_repo_edit_maps_to_label_write_edit_repo_label() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "labels",
+        "repo-edit",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--id",
+        "9",
+        "--name",
+        "bugfix",
+        "--color",
+        "#00ff00",
+        "--description",
+        "updated",
+        "--archived",
+        "false",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "label_write",
+            serde_json::json!({
+                "method": "edit_repo_label",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "id": 9,
+                "name": "bugfix",
+                "color": "#00ff00",
+                "description": "updated",
+                "is_archived": false
+            })
+        )
+    );
+}
+
+#[test]
+fn labels_repo_delete_requires_yes() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "labels",
+        "repo-delete",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--id",
+        "9",
+    ])
+    .unwrap();
+
+    let error = plan_command(&cli).unwrap_err();
+
+    assert!(error.to_string().contains("--yes"));
+}
+
+#[test]
+fn labels_repo_delete_maps_when_confirmed() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "labels",
+        "repo-delete",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--id",
+        "9",
+        "--yes",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "label_write",
+            serde_json::json!({
+                "method": "delete_repo_label",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "id": 9
+            })
+        )
+    );
+}
+
+#[test]
+fn labels_org_list_maps_to_label_read_list_org_labels() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "labels",
+        "org-list",
+        "--org",
+        "XINTUKJ",
+        "--page",
+        "3",
+        "--page-size",
+        "20",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "label_read",
+            serde_json::json!({
+                "method": "list_org_labels",
+                "org": "XINTUKJ",
+                "page": 3,
+                "perPage": 20
+            })
+        )
+    );
+}
+
+#[test]
+fn labels_org_create_maps_to_label_write_create_org_label() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "labels",
+        "org-create",
+        "--org",
+        "XINTUKJ",
+        "--name",
+        "needs-review",
+        "--color",
+        "#123456",
+        "--description",
+        "org label",
+        "--exclusive",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "label_write",
+            serde_json::json!({
+                "method": "create_org_label",
+                "org": "XINTUKJ",
+                "name": "needs-review",
+                "color": "#123456",
+                "description": "org label",
+                "exclusive": true
+            })
+        )
+    );
+}
+
+#[test]
+fn labels_org_edit_maps_to_label_write_edit_org_label() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "labels",
+        "org-edit",
+        "--org",
+        "XINTUKJ",
+        "--id",
+        "12",
+        "--name",
+        "ready",
+        "--color",
+        "#654321",
+        "--description",
+        "updated org label",
+        "--exclusive",
+        "false",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "label_write",
+            serde_json::json!({
+                "method": "edit_org_label",
+                "org": "XINTUKJ",
+                "id": 12,
+                "name": "ready",
+                "color": "#654321",
+                "description": "updated org label",
+                "exclusive": false
+            })
+        )
+    );
+}
+
+#[test]
+fn labels_org_delete_requires_yes() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "labels",
+        "org-delete",
+        "--org",
+        "XINTUKJ",
+        "--id",
+        "12",
+    ])
+    .unwrap();
+
+    let error = plan_command(&cli).unwrap_err();
+
+    assert!(error.to_string().contains("--yes"));
+}
+
+#[test]
+fn labels_org_delete_maps_when_confirmed() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "labels",
+        "org-delete",
+        "--org",
+        "XINTUKJ",
+        "--id",
+        "12",
+        "--yes",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "label_write",
+            serde_json::json!({
+                "method": "delete_org_label",
+                "org": "XINTUKJ",
+                "id": 12
+            })
+        )
+    );
+}
+
+#[test]
+fn milestones_list_maps_to_milestone_read_list() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "milestones",
+        "list",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--state",
+        "open",
+        "--name",
+        "v0",
+        "--page",
+        "2",
+        "--page-size",
+        "40",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "milestone_read",
+            serde_json::json!({
+                "method": "list",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "state": "open",
+                "name": "v0",
+                "page": 2,
+                "perPage": 40
+            })
+        )
+    );
+}
+
+#[test]
+fn milestones_get_maps_to_milestone_read_get() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "milestones",
+        "get",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--id",
+        "6",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "milestone_read",
+            serde_json::json!({
+                "method": "get",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "id": 6
+            })
+        )
+    );
+}
+
+#[test]
+fn milestones_create_maps_to_milestone_write_create() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "milestones",
+        "create",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--title",
+        "v0.0.6",
+        "--description",
+        "phase 2",
+        "--due-on",
+        "2026-04-30T00:00:00Z",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "milestone_write",
+            serde_json::json!({
+                "method": "create",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "title": "v0.0.6",
+                "description": "phase 2",
+                "due_on": "2026-04-30T00:00:00Z"
+            })
+        )
+    );
+}
+
+#[test]
+fn milestones_edit_maps_to_milestone_write_edit() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "milestones",
+        "edit",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--id",
+        "6",
+        "--title",
+        "v0.0.6-1",
+        "--description",
+        "updated phase 2",
+        "--due-on",
+        "2026-05-01T00:00:00Z",
+        "--state",
+        "closed",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "milestone_write",
+            serde_json::json!({
+                "method": "edit",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "id": 6,
+                "title": "v0.0.6-1",
+                "description": "updated phase 2",
+                "due_on": "2026-05-01T00:00:00Z",
+                "state": "closed"
+            })
+        )
+    );
+}
+
+#[test]
+fn milestones_delete_requires_yes() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "milestones",
+        "delete",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--id",
+        "6",
+    ])
+    .unwrap();
+
+    let error = plan_command(&cli).unwrap_err();
+
+    assert!(error.to_string().contains("--yes"));
+}
+
+#[test]
+fn milestones_delete_maps_when_confirmed() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "milestones",
+        "delete",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--id",
+        "6",
+        "--yes",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "milestone_write",
+            serde_json::json!({
+                "method": "delete",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "id": 6
+            })
+        )
+    );
+}
+
+#[test]
+fn top_level_help_includes_label_and_milestone_commands() {
+    let help = render_help(Cli::command());
+
+    assert!(help.contains("labels"));
+    assert!(help.contains("milestones"));
+}
+
+#[test]
+fn labels_help_includes_subcommand_descriptions() {
+    let mut root = Cli::command();
+    let labels_help = render_help(find_subcommand(&mut root, "labels").clone());
+
+    assert!(help_has_command_description(
+        &labels_help,
+        "repo-list",
+        "列出仓库 labels"
+    ));
+    assert!(help_has_command_description(
+        &labels_help,
+        "repo-create",
+        "创建仓库 label"
+    ));
+    assert!(help_has_command_description(
+        &labels_help,
+        "org-list",
+        "列出组织 labels"
+    ));
+    assert!(help_has_command_description(
+        &labels_help,
+        "org-delete",
+        "删除组织 label"
+    ));
+}
+
+#[test]
+fn milestones_help_includes_subcommand_descriptions() {
+    let mut root = Cli::command();
+    let milestones_help = render_help(find_subcommand(&mut root, "milestones").clone());
+
+    assert!(milestones_help.contains("list    列出仓库 milestones"));
+    assert!(milestones_help.contains("get     读取单个 milestone"));
+    assert!(milestones_help.contains("create  创建 milestone"));
+    assert!(milestones_help.contains("delete  删除 milestone"));
 }

@@ -21,7 +21,7 @@
 - 通过 stdio 与已配置的 Gitea MCP Server 通信，不重新发明鉴权
 - 提供 `doctor` 健康检查，自动脱敏敏感参数
 - 提供仓库、Issue、PR、Actions 等常见排查命令
-- 提供 issue 创建、更新、评论、label 维护与 time tracking 高层命令
+- 提供 issue 创建、更新、评论、label 维护、milestone 管理与 time tracking 高层命令
 - 当 MCP 返回单条 JSON 文本内容时，自动补充 `result.parsed`
 - 保留 `mcp call` 原始出口，方便覆盖未封装的工具
 
@@ -240,6 +240,52 @@ gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_
 - `gitea-cli --json issues time delete --owner YOUR_ORG --repo YOUR_REPO --index 123 --id 77 --yes`
   删除一条 issue time 记录，属于危险操作，必须显式传 `--yes`。
 
+### Labels
+
+- `gitea-cli --json labels repo-list --owner YOUR_ORG --repo YOUR_REPO`
+  列出某个仓库下的全部 labels，适合在 issue 编排前先确认可用 label 集合。
+
+- `gitea-cli --json labels repo-get --owner YOUR_ORG --repo YOUR_REPO --id 9`
+  按 ID 读取单个仓库 label 的详情。
+
+- `gitea-cli --json labels repo-create --owner YOUR_ORG --repo YOUR_REPO --name bug --color '#ff0000'`
+  在仓库下创建一个 label，可附带描述和 archived 标记。
+
+- `gitea-cli --json labels repo-edit --owner YOUR_ORG --repo YOUR_REPO --id 9 --name urgent`
+  更新仓库 label，可按需修改名称、颜色、描述和 archived 状态。
+
+- `gitea-cli --json labels repo-delete --owner YOUR_ORG --repo YOUR_REPO --id 9 --yes`
+  删除一个仓库 label，属于危险操作，必须显式传 `--yes`。
+
+- `gitea-cli --json labels org-list --org YOUR_ORG`
+  列出组织级 labels，适合查看组织默认标签池。
+
+- `gitea-cli --json labels org-create --org YOUR_ORG --name backend --color '#0055cc'`
+  在组织下创建一个 label，可附带描述和 exclusive 标记。
+
+- `gitea-cli --json labels org-edit --org YOUR_ORG --id 7 --name frontend`
+  更新组织 label，可按需修改名称、颜色、描述和 exclusive 状态。
+
+- `gitea-cli --json labels org-delete --org YOUR_ORG --id 7 --yes`
+  删除一个组织 label，属于危险操作，必须显式传 `--yes`。
+
+### Milestones
+
+- `gitea-cli --json milestones list --owner YOUR_ORG --repo YOUR_REPO --state open`
+  列出仓库 milestones，可结合状态、名称和分页参数筛选。
+
+- `gitea-cli --json milestones get --owner YOUR_ORG --repo YOUR_REPO --id 3`
+  按 ID 读取单个 milestone 的详情。
+
+- `gitea-cli --json milestones create --owner YOUR_ORG --repo YOUR_REPO --title v0.0.6`
+  创建一个 milestone，可附带描述和截止时间。
+
+- `gitea-cli --json milestones edit --owner YOUR_ORG --repo YOUR_REPO --id 3 --title v0.0.6`
+  更新已有 milestone，可修改标题、描述、状态和截止时间。
+
+- `gitea-cli --json milestones delete --owner YOUR_ORG --repo YOUR_REPO --id 3 --yes`
+  删除一个 milestone，属于危险操作，必须显式传 `--yes`。
+
 ### Pull Requests
 
 - `gitea-cli --json pulls list --owner YOUR_ORG --repo YOUR_REPO --state open`
@@ -321,11 +367,11 @@ gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_
 - [ ] Actions 写操作与配置管理
   暂未单独封装 workflow dispatch、cancel/rerun、secrets、variables 等高层命令。
 
-- [ ] Labels
-  暂未单独封装 repo/org labels 相关高层命令。
+- [x] Labels
+  已提供 `labels repo-list/repo-get/repo-create/repo-edit/repo-delete/org-list/org-create/org-edit/org-delete`。
 
-- [ ] Milestones
-  暂未单独封装 milestone 相关高层命令。
+- [x] Milestones
+  已提供 `milestones list/get/create/edit/delete`。
 
 - [ ] Wiki
   暂未单独封装 wiki page 与 revision 相关高层命令。
@@ -354,7 +400,7 @@ gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_
 
 - 高层命令以排查与受控写操作为主
 - `mcp call` 是原始逃生口，理论上可以调用更多写操作工具
-- `label-remove`、`labels-clear`、`issues time reset-stopwatch`、`issues time delete` 这类危险操作必须显式传 `--yes`
+- `issues label-remove`、`issues labels-clear`、`issues time reset-stopwatch`、`issues time delete`、`labels repo-delete`、`labels org-delete`、`milestones delete` 这类危险操作必须显式传 `--yes`
 - 其余写命令保持可脚本化，不额外弹确认
 
 ## Development
@@ -394,7 +440,7 @@ make install-local
 
 ## Roadmap
 
-- 补充 labels、milestones、wiki 等高层命令
+- 补充 wiki、PR 写操作、Actions 写操作等高层命令
 - 增加更完整的分页和过滤支持
 - 在未来引入写命令前补充更清晰的安全护栏
 - 增加 `gitea-cli` 独立配置层

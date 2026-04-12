@@ -70,6 +70,10 @@ pub enum Command {
     Commits(CommitsCommand),
     /// 管理 issue、评论、labels 与 time tracking
     Issues(IssuesCommand),
+    /// 管理仓库与组织 labels
+    Labels(LabelsCommand),
+    /// 管理仓库 milestones
+    Milestones(MilestonesCommand),
     /// 查询 pull request 列表、详情和 diff
     Pulls(PullsCommand),
     /// 查询 Actions workflow、run、job 与日志预览
@@ -230,6 +234,54 @@ pub struct PullsCommand {
     pub command: PullsSubcommand,
 }
 
+#[derive(Debug, Clone, Args)]
+pub struct LabelsCommand {
+    #[command(subcommand)]
+    pub command: LabelsSubcommand,
+}
+
+#[derive(Debug, Clone, Subcommand)]
+pub enum LabelsSubcommand {
+    /// 列出仓库 labels
+    RepoList(RepoTargetWithPageArgs),
+    /// 读取单个仓库 label
+    RepoGet(RepoLabelTargetArgs),
+    /// 创建仓库 label
+    RepoCreate(RepoLabelCreateArgs),
+    /// 编辑仓库 label
+    RepoEdit(RepoLabelEditArgs),
+    /// 删除仓库 label
+    RepoDelete(RepoLabelDeleteArgs),
+    /// 列出组织 labels
+    OrgList(OrgLabelsListArgs),
+    /// 创建组织 label
+    OrgCreate(OrgLabelCreateArgs),
+    /// 编辑组织 label
+    OrgEdit(OrgLabelEditArgs),
+    /// 删除组织 label
+    OrgDelete(OrgLabelDeleteArgs),
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct MilestonesCommand {
+    #[command(subcommand)]
+    pub command: MilestonesSubcommand,
+}
+
+#[derive(Debug, Clone, Subcommand)]
+pub enum MilestonesSubcommand {
+    /// 列出仓库 milestones
+    List(MilestoneListArgs),
+    /// 读取单个 milestone
+    Get(MilestoneTargetArgs),
+    /// 创建 milestone
+    Create(MilestoneCreateArgs),
+    /// 编辑 milestone
+    Edit(MilestoneEditArgs),
+    /// 删除 milestone
+    Delete(MilestoneDeleteArgs),
+}
+
 #[derive(Debug, Clone, Subcommand)]
 pub enum PullsSubcommand {
     /// 列出仓库 pull request 列表
@@ -357,6 +409,129 @@ pub struct RepoTreeArgs {
 }
 
 #[derive(Debug, Clone, Args)]
+pub struct RepoLabelTargetArgs {
+    #[command(flatten)]
+    pub target: RepoTargetArgs,
+    /// Label ID
+    #[arg(long)]
+    pub id: u64,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct RepoLabelCreateArgs {
+    #[command(flatten)]
+    pub target: RepoTargetArgs,
+    /// Label 名称
+    #[arg(long)]
+    pub name: String,
+    /// Label 颜色，格式为 #RRGGBB
+    #[arg(long)]
+    pub color: String,
+    /// Label 描述
+    #[arg(long)]
+    pub description: Option<String>,
+    /// 创建归档 label
+    #[arg(long)]
+    pub archived: bool,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct RepoLabelEditArgs {
+    #[command(flatten)]
+    pub target: RepoTargetArgs,
+    /// Label ID
+    #[arg(long)]
+    pub id: u64,
+    /// Label 名称
+    #[arg(long)]
+    pub name: Option<String>,
+    /// Label 颜色，格式为 #RRGGBB
+    #[arg(long)]
+    pub color: Option<String>,
+    /// Label 描述
+    #[arg(long)]
+    pub description: Option<String>,
+    /// 是否归档，显式传 true 或 false
+    #[arg(long)]
+    pub archived: Option<bool>,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct RepoLabelDeleteArgs {
+    #[command(flatten)]
+    pub target: RepoTargetArgs,
+    /// Label ID
+    #[arg(long)]
+    pub id: u64,
+    /// 确认执行危险操作
+    #[arg(long)]
+    pub yes: bool,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct OrgLabelsListArgs {
+    /// 组织名
+    #[arg(long)]
+    pub org: String,
+    #[command(flatten)]
+    pub page: PageArgs,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct OrgLabelCreateArgs {
+    /// 组织名
+    #[arg(long)]
+    pub org: String,
+    /// Label 名称
+    #[arg(long)]
+    pub name: String,
+    /// Label 颜色，格式为 #RRGGBB
+    #[arg(long)]
+    pub color: String,
+    /// Label 描述
+    #[arg(long)]
+    pub description: Option<String>,
+    /// 是否为 exclusive label
+    #[arg(long)]
+    pub exclusive: bool,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct OrgLabelEditArgs {
+    /// 组织名
+    #[arg(long)]
+    pub org: String,
+    /// Label ID
+    #[arg(long)]
+    pub id: u64,
+    /// Label 名称
+    #[arg(long)]
+    pub name: Option<String>,
+    /// Label 颜色，格式为 #RRGGBB
+    #[arg(long)]
+    pub color: Option<String>,
+    /// Label 描述
+    #[arg(long)]
+    pub description: Option<String>,
+    /// 是否为 exclusive label，显式传 true 或 false
+    #[arg(long)]
+    pub exclusive: Option<bool>,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct OrgLabelDeleteArgs {
+    /// 组织名
+    #[arg(long)]
+    pub org: String,
+    /// Label ID
+    #[arg(long)]
+    pub id: u64,
+    /// 确认执行危险操作
+    #[arg(long)]
+    pub yes: bool,
+}
+
+#[derive(Debug, Clone, Args)]
 pub struct ReleaseTargetArgs {
     /// Gitea 仓库所属 owner 或组织
     #[arg(long)]
@@ -367,6 +542,77 @@ pub struct ReleaseTargetArgs {
     /// Release ID
     #[arg(long)]
     pub id: u64,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct MilestoneTargetArgs {
+    #[command(flatten)]
+    pub target: RepoTargetArgs,
+    /// Milestone ID
+    #[arg(long)]
+    pub id: u64,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct MilestoneListArgs {
+    #[command(flatten)]
+    pub target: RepoTargetArgs,
+    /// Milestone 状态
+    #[arg(long)]
+    pub state: Option<String>,
+    /// Milestone 名称关键字
+    #[arg(long)]
+    pub name: Option<String>,
+    #[command(flatten)]
+    pub page: PageArgs,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct MilestoneCreateArgs {
+    #[command(flatten)]
+    pub target: RepoTargetArgs,
+    /// Milestone 标题
+    #[arg(long)]
+    pub title: String,
+    /// Milestone 描述
+    #[arg(long)]
+    pub description: Option<String>,
+    /// 截止时间，使用 ISO 8601
+    #[arg(long = "due-on")]
+    pub due_on: Option<String>,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct MilestoneEditArgs {
+    #[command(flatten)]
+    pub target: RepoTargetArgs,
+    /// Milestone ID
+    #[arg(long)]
+    pub id: u64,
+    /// Milestone 标题
+    #[arg(long)]
+    pub title: Option<String>,
+    /// Milestone 描述
+    #[arg(long)]
+    pub description: Option<String>,
+    /// 截止时间，使用 ISO 8601
+    #[arg(long = "due-on")]
+    pub due_on: Option<String>,
+    /// Milestone 状态
+    #[arg(long)]
+    pub state: Option<String>,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct MilestoneDeleteArgs {
+    #[command(flatten)]
+    pub target: RepoTargetArgs,
+    /// Milestone ID
+    #[arg(long)]
+    pub id: u64,
+    /// 确认执行危险操作
+    #[arg(long)]
+    pub yes: bool,
 }
 
 #[derive(Debug, Clone, Args)]
@@ -724,6 +970,8 @@ pub fn plan_command(cli: &Cli) -> Result<PlannedCommand> {
         Command::Tags(command) => plan_tags(command),
         Command::Commits(command) => plan_commits(command),
         Command::Issues(command) => plan_issues(command),
+        Command::Labels(command) => plan_labels(command),
+        Command::Milestones(command) => plan_milestones(command),
         Command::Pulls(command) => plan_pulls(command),
         Command::Actions(command) => plan_actions(command),
         Command::Resolve(command) => plan_resolve(command),
@@ -1016,6 +1264,190 @@ fn plan_issue_time(command: &IssueTimeCommand) -> Result<PlannedCommand> {
     }
 }
 
+fn plan_labels(command: &LabelsCommand) -> Result<PlannedCommand> {
+    match &command.command {
+        LabelsSubcommand::RepoList(args) => Ok(PlannedCommand::tool_call(
+            "label_read",
+            json!({
+                "method": "list_repo_labels",
+                "owner": args.target.owner,
+                "repo": args.target.repo,
+                "page": args.page.page,
+                "perPage": args.page.page_size
+            }),
+        )),
+        LabelsSubcommand::RepoGet(args) => Ok(PlannedCommand::tool_call(
+            "label_read",
+            json!({
+                "method": "get_repo_label",
+                "owner": args.target.owner,
+                "repo": args.target.repo,
+                "id": args.id
+            }),
+        )),
+        LabelsSubcommand::RepoCreate(args) => {
+            let mut params = Map::new();
+            params.insert("method".to_string(), json!("create_repo_label"));
+            params.insert("owner".to_string(), json!(args.target.owner));
+            params.insert("repo".to_string(), json!(args.target.repo));
+            params.insert("name".to_string(), json!(args.name));
+            params.insert("color".to_string(), json!(args.color));
+            insert_optional_string(&mut params, "description", args.description.as_deref());
+            if args.archived {
+                params.insert("is_archived".to_string(), json!(true));
+            }
+            Ok(PlannedCommand::tool_call(
+                "label_write",
+                Value::Object(params),
+            ))
+        }
+        LabelsSubcommand::RepoEdit(args) => {
+            let mut params = Map::new();
+            params.insert("method".to_string(), json!("edit_repo_label"));
+            params.insert("owner".to_string(), json!(args.target.owner));
+            params.insert("repo".to_string(), json!(args.target.repo));
+            params.insert("id".to_string(), json!(args.id));
+            insert_optional_string(&mut params, "name", args.name.as_deref());
+            insert_optional_string(&mut params, "color", args.color.as_deref());
+            insert_optional_string(&mut params, "description", args.description.as_deref());
+            insert_optional_bool(&mut params, "is_archived", args.archived);
+            Ok(PlannedCommand::tool_call(
+                "label_write",
+                Value::Object(params),
+            ))
+        }
+        LabelsSubcommand::RepoDelete(args) => {
+            require_yes(args.yes, "删除 repo label")?;
+            Ok(PlannedCommand::tool_call(
+                "label_write",
+                json!({
+                    "method": "delete_repo_label",
+                    "owner": args.target.owner,
+                    "repo": args.target.repo,
+                    "id": args.id
+                }),
+            ))
+        }
+        LabelsSubcommand::OrgList(args) => Ok(PlannedCommand::tool_call(
+            "label_read",
+            json!({
+                "method": "list_org_labels",
+                "org": args.org,
+                "page": args.page.page,
+                "perPage": args.page.page_size
+            }),
+        )),
+        LabelsSubcommand::OrgCreate(args) => {
+            let mut params = Map::new();
+            params.insert("method".to_string(), json!("create_org_label"));
+            params.insert("org".to_string(), json!(args.org));
+            params.insert("name".to_string(), json!(args.name));
+            params.insert("color".to_string(), json!(args.color));
+            insert_optional_string(&mut params, "description", args.description.as_deref());
+            if args.exclusive {
+                params.insert("exclusive".to_string(), json!(true));
+            }
+            Ok(PlannedCommand::tool_call(
+                "label_write",
+                Value::Object(params),
+            ))
+        }
+        LabelsSubcommand::OrgEdit(args) => {
+            let mut params = Map::new();
+            params.insert("method".to_string(), json!("edit_org_label"));
+            params.insert("org".to_string(), json!(args.org));
+            params.insert("id".to_string(), json!(args.id));
+            insert_optional_string(&mut params, "name", args.name.as_deref());
+            insert_optional_string(&mut params, "color", args.color.as_deref());
+            insert_optional_string(&mut params, "description", args.description.as_deref());
+            insert_optional_bool(&mut params, "exclusive", args.exclusive);
+            Ok(PlannedCommand::tool_call(
+                "label_write",
+                Value::Object(params),
+            ))
+        }
+        LabelsSubcommand::OrgDelete(args) => {
+            require_yes(args.yes, "删除 org label")?;
+            Ok(PlannedCommand::tool_call(
+                "label_write",
+                json!({
+                    "method": "delete_org_label",
+                    "org": args.org,
+                    "id": args.id
+                }),
+            ))
+        }
+    }
+}
+
+fn plan_milestones(command: &MilestonesCommand) -> Result<PlannedCommand> {
+    match &command.command {
+        MilestonesSubcommand::List(args) => {
+            let mut params = Map::new();
+            params.insert("method".to_string(), json!("list"));
+            params.insert("owner".to_string(), json!(args.target.owner));
+            params.insert("repo".to_string(), json!(args.target.repo));
+            params.insert("page".to_string(), json!(args.page.page));
+            params.insert("perPage".to_string(), json!(args.page.page_size));
+            insert_optional_string(&mut params, "state", args.state.as_deref());
+            insert_optional_string(&mut params, "name", args.name.as_deref());
+            Ok(PlannedCommand::tool_call(
+                "milestone_read",
+                Value::Object(params),
+            ))
+        }
+        MilestonesSubcommand::Get(args) => Ok(PlannedCommand::tool_call(
+            "milestone_read",
+            json!({
+                "method": "get",
+                "owner": args.target.owner,
+                "repo": args.target.repo,
+                "id": args.id
+            }),
+        )),
+        MilestonesSubcommand::Create(args) => {
+            let mut params = Map::new();
+            params.insert("method".to_string(), json!("create"));
+            params.insert("owner".to_string(), json!(args.target.owner));
+            params.insert("repo".to_string(), json!(args.target.repo));
+            params.insert("title".to_string(), json!(args.title));
+            insert_optional_string(&mut params, "description", args.description.as_deref());
+            insert_optional_string(&mut params, "due_on", args.due_on.as_deref());
+            Ok(PlannedCommand::tool_call(
+                "milestone_write",
+                Value::Object(params),
+            ))
+        }
+        MilestonesSubcommand::Edit(args) => {
+            let mut params = Map::new();
+            params.insert("method".to_string(), json!("edit"));
+            params.insert("owner".to_string(), json!(args.target.owner));
+            params.insert("repo".to_string(), json!(args.target.repo));
+            params.insert("id".to_string(), json!(args.id));
+            insert_optional_string(&mut params, "title", args.title.as_deref());
+            insert_optional_string(&mut params, "description", args.description.as_deref());
+            insert_optional_string(&mut params, "due_on", args.due_on.as_deref());
+            insert_optional_string(&mut params, "state", args.state.as_deref());
+            Ok(PlannedCommand::tool_call(
+                "milestone_write",
+                Value::Object(params),
+            ))
+        }
+        MilestonesSubcommand::Delete(args) => {
+            require_yes(args.yes, "删除 milestone")?;
+            Ok(PlannedCommand::tool_call(
+                "milestone_write",
+                json!({
+                    "method": "delete",
+                    "owner": args.target.owner,
+                    "repo": args.target.repo,
+                    "id": args.id
+                }),
+            ))
+        }
+    }
+}
+
 fn plan_releases(command: &ReleasesCommand) -> Result<PlannedCommand> {
     match &command.command {
         ReleasesSubcommand::List(args) => Ok(PlannedCommand::tool_call(
@@ -1227,6 +1659,12 @@ fn insert_optional_string(target: &mut Map<String, Value>, key: &str, value: Opt
 }
 
 fn insert_optional_u64(target: &mut Map<String, Value>, key: &str, value: Option<u64>) {
+    if let Some(value) = value {
+        target.insert(key.to_string(), json!(value));
+    }
+}
+
+fn insert_optional_bool(target: &mut Map<String, Value>, key: &str, value: Option<bool>) {
     if let Some(value) = value {
         target.insert(key.to_string(), json!(value));
     }
