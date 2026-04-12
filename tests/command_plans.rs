@@ -356,7 +356,7 @@ fn top_level_help_includes_command_descriptions() {
     let help = render_help(Cli::command());
 
     assert!(help.contains("doctor    检查 gitea-cli 与底层 Gitea MCP 配置是否可用"));
-    assert!(help.contains("issues    查询 issue 列表、详情、评论与跨仓库搜索"));
+    assert!(help.contains("issues    管理 issue、评论、labels 与 time tracking"));
     assert!(help.contains("releases  查询仓库 release 列表、最新版本和单个 release"));
 }
 
@@ -372,10 +372,10 @@ fn issues_help_includes_subcommand_descriptions() {
     let mut root = Cli::command();
     let issues_help = render_help(find_subcommand(&mut root, "issues").clone());
 
-    assert!(issues_help.contains("list      列出仓库 issue 列表"));
-    assert!(issues_help.contains("get       读取单个 issue 详情"));
-    assert!(issues_help.contains("comments  读取单个 issue 的评论列表"));
-    assert!(issues_help.contains("search    按关键词跨仓库搜索 issue 或 pull request"));
+    assert!(issues_help.contains("list            列出仓库 issue 列表"));
+    assert!(issues_help.contains("get             读取单个 issue 详情"));
+    assert!(issues_help.contains("comments        读取单个 issue 的评论列表"));
+    assert!(issues_help.contains("search          按关键词跨仓库搜索 issue 或 pull request"));
 }
 
 #[test]
@@ -392,4 +392,640 @@ fn issues_list_help_includes_option_descriptions() {
     assert!(issues_list_help.contains("Issue 状态过滤，默认 open"));
     assert!(issues_list_help.contains("--page-size <PAGE_SIZE>"));
     assert!(issues_list_help.contains("每页返回条数"));
+}
+
+#[test]
+fn issues_create_maps_to_issue_write_create() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "issues",
+        "create",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--title",
+        "need fix",
+        "--body",
+        "detail",
+        "--assignee",
+        "mashu",
+        "--label-id",
+        "3",
+        "--milestone",
+        "7",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "issue_write",
+            serde_json::json!({
+                "method": "create",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "title": "need fix",
+                "body": "detail",
+                "assignees": ["mashu"],
+                "labels": [3],
+                "milestone": 7
+            })
+        )
+    );
+}
+
+#[test]
+fn issues_update_maps_to_issue_write_update() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "issues",
+        "update",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--index",
+        "524",
+        "--title",
+        "new title",
+        "--state",
+        "closed",
+        "--remove-deadline",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "issue_write",
+            serde_json::json!({
+                "method": "update",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "index": 524,
+                "title": "new title",
+                "state": "closed",
+                "remove_deadline": true
+            })
+        )
+    );
+}
+
+#[test]
+fn issues_comment_add_maps_to_issue_write_add_comment() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "issues",
+        "comment-add",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--index",
+        "524",
+        "--body",
+        "follow up",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "issue_write",
+            serde_json::json!({
+                "method": "add_comment",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "index": 524,
+                "body": "follow up"
+            })
+        )
+    );
+}
+
+#[test]
+fn issues_comment_edit_maps_to_issue_write_edit_comment() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "issues",
+        "comment-edit",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--index",
+        "524",
+        "--comment-id",
+        "88",
+        "--body",
+        "edited body",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "issue_write",
+            serde_json::json!({
+                "method": "edit_comment",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "index": 524,
+                "commentID": 88,
+                "body": "edited body"
+            })
+        )
+    );
+}
+
+#[test]
+fn issues_labels_maps_to_issue_read_get_labels() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "issues",
+        "labels",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--index",
+        "524",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "issue_read",
+            serde_json::json!({
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "index": 524,
+                "method": "get_labels"
+            })
+        )
+    );
+}
+
+#[test]
+fn issues_labels_add_maps_to_issue_write_add_labels() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "issues",
+        "labels-add",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--index",
+        "524",
+        "--label-id",
+        "1",
+        "--label-id",
+        "2",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "issue_write",
+            serde_json::json!({
+                "method": "add_labels",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "index": 524,
+                "labels": [1, 2]
+            })
+        )
+    );
+}
+
+#[test]
+fn issues_label_remove_requires_yes() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "issues",
+        "label-remove",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--index",
+        "524",
+        "--label-id",
+        "2",
+    ])
+    .unwrap();
+
+    let error = plan_command(&cli).unwrap_err();
+
+    assert!(error.to_string().contains("--yes"));
+}
+
+#[test]
+fn issues_label_remove_maps_when_confirmed() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "issues",
+        "label-remove",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--index",
+        "524",
+        "--label-id",
+        "2",
+        "--yes",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "issue_write",
+            serde_json::json!({
+                "method": "remove_label",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "index": 524,
+                "label_id": 2
+            })
+        )
+    );
+}
+
+#[test]
+fn issues_labels_replace_maps_to_issue_write_replace_labels() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "issues",
+        "labels-replace",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--index",
+        "524",
+        "--label-id",
+        "4",
+        "--label-id",
+        "5",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "issue_write",
+            serde_json::json!({
+                "method": "replace_labels",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "index": 524,
+                "labels": [4, 5]
+            })
+        )
+    );
+}
+
+#[test]
+fn issues_labels_clear_requires_yes() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "issues",
+        "labels-clear",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--index",
+        "524",
+    ])
+    .unwrap();
+
+    let error = plan_command(&cli).unwrap_err();
+
+    assert!(error.to_string().contains("--yes"));
+}
+
+#[test]
+fn issues_labels_clear_maps_when_confirmed() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "issues",
+        "labels-clear",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--index",
+        "524",
+        "--yes",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "issue_write",
+            serde_json::json!({
+                "method": "clear_labels",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "index": 524
+            })
+        )
+    );
+}
+
+#[test]
+fn issues_time_list_maps_to_timetracking_read() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "issues",
+        "time",
+        "list",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--index",
+        "524",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "timetracking_read",
+            serde_json::json!({
+                "method": "list_issue_times",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "index": 524,
+                "page": 1,
+                "perPage": 30
+            })
+        )
+    );
+}
+
+#[test]
+fn issues_time_start_maps_to_timetracking_write_start_stopwatch() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "issues",
+        "time",
+        "start",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--index",
+        "524",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "timetracking_write",
+            serde_json::json!({
+                "method": "start_stopwatch",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "index": 524
+            })
+        )
+    );
+}
+
+#[test]
+fn issues_time_stop_maps_to_timetracking_write_stop_stopwatch() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "issues",
+        "time",
+        "stop",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--index",
+        "524",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "timetracking_write",
+            serde_json::json!({
+                "method": "stop_stopwatch",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "index": 524
+            })
+        )
+    );
+}
+
+#[test]
+fn issues_time_reset_stopwatch_requires_yes() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "issues",
+        "time",
+        "reset-stopwatch",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--index",
+        "524",
+    ])
+    .unwrap();
+
+    let error = plan_command(&cli).unwrap_err();
+
+    assert!(error.to_string().contains("--yes"));
+}
+
+#[test]
+fn issues_time_reset_stopwatch_maps_when_confirmed() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "issues",
+        "time",
+        "reset-stopwatch",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--index",
+        "524",
+        "--yes",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "timetracking_write",
+            serde_json::json!({
+                "method": "delete_stopwatch",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "index": 524
+            })
+        )
+    );
+}
+
+#[test]
+fn issues_time_add_maps_to_timetracking_write_add_time() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "issues",
+        "time",
+        "add",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--index",
+        "524",
+        "--seconds",
+        "120",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "timetracking_write",
+            serde_json::json!({
+                "method": "add_time",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "index": 524,
+                "time": 120
+            })
+        )
+    );
+}
+
+#[test]
+fn issues_time_delete_requires_yes() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "issues",
+        "time",
+        "delete",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--index",
+        "524",
+        "--id",
+        "77",
+    ])
+    .unwrap();
+
+    let error = plan_command(&cli).unwrap_err();
+
+    assert!(error.to_string().contains("--yes"));
+}
+
+#[test]
+fn issues_time_delete_maps_when_confirmed() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "issues",
+        "time",
+        "delete",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--index",
+        "524",
+        "--id",
+        "77",
+        "--yes",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "timetracking_write",
+            serde_json::json!({
+                "method": "delete_time",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "index": 524,
+                "id": 77
+            })
+        )
+    );
+}
+
+#[test]
+fn issues_help_includes_phase1_subcommand_descriptions() {
+    let mut root = Cli::command();
+    let issues_help = render_help(find_subcommand(&mut root, "issues").clone());
+
+    assert!(issues_help.contains("create          创建 issue"));
+    assert!(issues_help.contains("update          更新 issue"));
+    assert!(issues_help.contains("comment-add     为 issue 添加评论"));
+    assert!(issues_help.contains("comment-edit    编辑 issue 评论"));
+    assert!(issues_help.contains("labels          读取 issue 当前 labels"));
+    assert!(issues_help.contains("time            读取或写入 issue time tracking"));
+}
+
+#[test]
+fn issues_time_help_includes_subcommand_descriptions() {
+    let mut root = Cli::command();
+    let issues = find_subcommand(&mut root, "issues");
+    let time_help = render_help(find_subcommand(issues, "time").clone());
+
+    assert!(time_help.contains("list             读取 issue time tracking 记录"));
+    assert!(time_help.contains("start            启动 issue stopwatch"));
+    assert!(time_help.contains("reset-stopwatch  清空 issue stopwatch"));
+    assert!(time_help.contains("delete           删除一条 issue time 记录"));
 }

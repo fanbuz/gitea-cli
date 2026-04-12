@@ -20,7 +20,8 @@
 - 复用 `~/.codex/config.toml` 里的 `gitea` MCP 配置
 - 通过 stdio 与已配置的 Gitea MCP Server 通信，不重新发明鉴权
 - 提供 `doctor` 健康检查，自动脱敏敏感参数
-- 提供仓库、Issue、PR、Actions 等常见只读命令
+- 提供仓库、Issue、PR、Actions 等常见排查命令
+- 提供 issue 创建、更新、评论、label 维护与 time tracking 高层命令
 - 当 MCP 返回单条 JSON 文本内容时，自动补充 `result.parsed`
 - 保留 `mcp call` 原始出口，方便覆盖未封装的工具
 
@@ -192,6 +193,53 @@ gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_
 - `gitea-cli --json issues search --query "exact phrase" --owner YOUR_ORG`
   按关键字跨仓库搜索 Issue，可结合 `--owner`、`--state` 等参数缩小范围。
 
+- `gitea-cli --json issues create --owner YOUR_ORG --repo YOUR_REPO --title "Need fix"`
+  创建一个 issue，可附带正文、assignee、label IDs、milestone、关联分支和截止时间。
+
+- `gitea-cli --json issues update --owner YOUR_ORG --repo YOUR_REPO --index 123 --state closed`
+  更新一个已有 issue，可修改标题、正文、状态、labels、milestone、关联分支和截止时间。
+
+- `gitea-cli --json issues comment-add --owner YOUR_ORG --repo YOUR_REPO --index 123 --body "follow up"`
+  为 issue 新增一条评论。
+
+- `gitea-cli --json issues comment-edit --owner YOUR_ORG --repo YOUR_REPO --index 123 --comment-id 88 --body "edited"`
+  编辑 issue 上已有的一条评论。
+
+- `gitea-cli --json issues labels --owner YOUR_ORG --repo YOUR_REPO --index 123`
+  读取 issue 当前绑定的 labels。
+
+- `gitea-cli --json issues labels-add --owner YOUR_ORG --repo YOUR_REPO --index 123 --label-id 1 --label-id 2`
+  为 issue 追加一组 labels。
+
+- `gitea-cli --json issues label-remove --owner YOUR_ORG --repo YOUR_REPO --index 123 --label-id 2 --yes`
+  从 issue 上删除单个 label，属于危险操作，必须显式传 `--yes`。
+
+- `gitea-cli --json issues labels-replace --owner YOUR_ORG --repo YOUR_REPO --index 123 --label-id 4 --label-id 5`
+  用一组 labels 替换 issue 当前的 labels 集合。
+
+- `gitea-cli --json issues labels-clear --owner YOUR_ORG --repo YOUR_REPO --index 123 --yes`
+  清空 issue 当前全部 labels，属于危险操作，必须显式传 `--yes`。
+
+### Issue Time
+
+- `gitea-cli --json issues time list --owner YOUR_ORG --repo YOUR_REPO --index 123`
+  读取 issue 当前的 time tracking 记录。
+
+- `gitea-cli --json issues time start --owner YOUR_ORG --repo YOUR_REPO --index 123`
+  为 issue 启动 stopwatch。
+
+- `gitea-cli --json issues time stop --owner YOUR_ORG --repo YOUR_REPO --index 123`
+  停止 issue 当前 stopwatch。
+
+- `gitea-cli --json issues time reset-stopwatch --owner YOUR_ORG --repo YOUR_REPO --index 123 --yes`
+  重置 issue 当前 stopwatch，属于危险操作，必须显式传 `--yes`。
+
+- `gitea-cli --json issues time add --owner YOUR_ORG --repo YOUR_REPO --index 123 --seconds 120`
+  为 issue 增加一条指定秒数的 tracked time 记录。
+
+- `gitea-cli --json issues time delete --owner YOUR_ORG --repo YOUR_REPO --index 123 --id 77 --yes`
+  删除一条 issue time 记录，属于危险操作，必须显式传 `--yes`。
+
 ### Pull Requests
 
 - `gitea-cli --json pulls list --owner YOUR_ORG --repo YOUR_REPO --state open`
@@ -258,11 +306,8 @@ gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_
 - [ ] 文件与目录内容管理
   暂未单独封装文件读取、目录读取、创建文件、更新文件、删除文件等高层命令。
 
-- [x] Issue 只读操作
-  已提供 `issues list`、`issues get`、`issues comments`、`issues search`。
-
-- [ ] Issue 写操作
-  暂未单独封装创建 Issue、编辑 Issue、创建评论、编辑评论等高层命令。
+- [x] Issue 读取与写操作
+  已提供 `issues list/get/comments/search/create/update/comment-add/comment-edit/labels/labels-add/label-remove/labels-replace/labels-clear`。
 
 - [x] Pull Request 只读操作
   已提供 `pulls list`、`pulls get`、`pulls diff`。
@@ -285,8 +330,8 @@ gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_
 - [ ] Wiki
   暂未单独封装 wiki page 与 revision 相关高层命令。
 
-- [ ] Time Tracking
-  暂未单独封装 time tracking 相关高层命令。
+- [x] Time Tracking
+  已提供 `issues time list/start/stop/reset-stopwatch/add/delete`，覆盖 issue 级 time tracking 常用工作流。
 
 - [x] 官方 MCP 原始能力透传
   已提供 `mcp call`，可直接调用底层官方 MCP 工具，作为高层命令尚未覆盖时的兜底出口。
@@ -307,9 +352,10 @@ gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_
 
 ## Safety
 
-- 高层命令默认偏只读
-- `mcp call` 是原始逃生口，理论上可以调用写操作工具
-- 涉及写操作时，建议显式确认后再执行
+- 高层命令以排查与受控写操作为主
+- `mcp call` 是原始逃生口，理论上可以调用更多写操作工具
+- `label-remove`、`labels-clear`、`issues time reset-stopwatch`、`issues time delete` 这类危险操作必须显式传 `--yes`
+- 其余写命令保持可脚本化，不额外弹确认
 
 ## Development
 

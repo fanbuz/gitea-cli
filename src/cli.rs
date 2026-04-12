@@ -68,7 +68,7 @@ pub enum Command {
     Tags(TagsCommand),
     /// 查询提交历史和单个 commit 详情
     Commits(CommitsCommand),
-    /// 查询 issue 列表、详情、评论与跨仓库搜索
+    /// 管理 issue、评论、labels 与 time tracking
     Issues(IssuesCommand),
     /// 查询 pull request 列表、详情和 diff
     Pulls(PullsCommand),
@@ -180,6 +180,48 @@ pub enum IssuesSubcommand {
     Comments(IssueTargetArgs),
     /// 按关键词跨仓库搜索 issue 或 pull request
     Search(IssueSearchArgs),
+    /// 创建 issue
+    Create(IssueCreateArgs),
+    /// 更新 issue
+    Update(IssueUpdateArgs),
+    /// 为 issue 添加评论
+    CommentAdd(IssueCommentAddArgs),
+    /// 编辑 issue 评论
+    CommentEdit(IssueCommentEditArgs),
+    /// 读取 issue 当前 labels
+    Labels(IssueTargetArgs),
+    /// 为 issue 添加 labels
+    LabelsAdd(IssueLabelsArgs),
+    /// 从 issue 删除一个 label
+    LabelRemove(IssueLabelRemoveArgs),
+    /// 用一组 labels 替换 issue 当前 labels
+    LabelsReplace(IssueLabelsArgs),
+    /// 清空 issue 当前 labels
+    LabelsClear(IssueDangerousTargetArgs),
+    /// 读取或写入 issue time tracking
+    Time(IssueTimeCommand),
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct IssueTimeCommand {
+    #[command(subcommand)]
+    pub command: IssueTimeSubcommand,
+}
+
+#[derive(Debug, Clone, Subcommand)]
+pub enum IssueTimeSubcommand {
+    /// 读取 issue time tracking 记录
+    List(IssueTimeListArgs),
+    /// 启动 issue stopwatch
+    Start(IssueTargetArgs),
+    /// 停止 issue stopwatch
+    Stop(IssueTargetArgs),
+    /// 清空 issue stopwatch
+    ResetStopwatch(IssueDangerousTargetArgs),
+    /// 为 issue 增加 tracked time
+    Add(IssueTimeAddArgs),
+    /// 删除一条 issue time 记录
+    Delete(IssueTimeDeleteArgs),
 }
 
 #[derive(Debug, Clone, Args)]
@@ -382,6 +424,150 @@ pub struct IssueTargetArgs {
     /// Issue 编号
     #[arg(long)]
     pub index: u64,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct IssueCreateArgs {
+    /// Gitea 仓库所属 owner 或组织
+    #[arg(long)]
+    pub owner: String,
+    /// Gitea 仓库名
+    #[arg(long)]
+    pub repo: String,
+    /// Issue 标题
+    #[arg(long)]
+    pub title: String,
+    /// Issue 正文
+    #[arg(long)]
+    pub body: Option<String>,
+    /// 指派用户，可重复传入
+    #[arg(long = "assignee")]
+    pub assignees: Vec<String>,
+    /// Label ID，可重复传入
+    #[arg(long = "label-id")]
+    pub label_ids: Vec<u64>,
+    /// Milestone 编号
+    #[arg(long)]
+    pub milestone: Option<u64>,
+    /// 关联分支名
+    #[arg(long = "ref")]
+    pub git_ref: Option<String>,
+    /// 截止时间，使用 ISO 8601
+    #[arg(long)]
+    pub deadline: Option<String>,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct IssueUpdateArgs {
+    #[command(flatten)]
+    pub target: IssueTargetArgs,
+    /// Issue 标题
+    #[arg(long)]
+    pub title: Option<String>,
+    /// Issue 正文
+    #[arg(long)]
+    pub body: Option<String>,
+    /// Issue 状态
+    #[arg(long)]
+    pub state: Option<String>,
+    /// 指派用户，可重复传入
+    #[arg(long = "assignee")]
+    pub assignees: Vec<String>,
+    /// Label ID，可重复传入
+    #[arg(long = "label-id")]
+    pub label_ids: Vec<u64>,
+    /// Milestone 编号
+    #[arg(long)]
+    pub milestone: Option<u64>,
+    /// 关联分支名
+    #[arg(long = "ref")]
+    pub git_ref: Option<String>,
+    /// 截止时间，使用 ISO 8601
+    #[arg(long)]
+    pub deadline: Option<String>,
+    /// 清空截止时间
+    #[arg(long)]
+    pub remove_deadline: bool,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct IssueCommentAddArgs {
+    #[command(flatten)]
+    pub target: IssueTargetArgs,
+    /// 评论正文
+    #[arg(long)]
+    pub body: String,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct IssueCommentEditArgs {
+    #[command(flatten)]
+    pub target: IssueTargetArgs,
+    /// 评论 ID
+    #[arg(long = "comment-id")]
+    pub comment_id: u64,
+    /// 评论正文
+    #[arg(long)]
+    pub body: String,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct IssueLabelsArgs {
+    #[command(flatten)]
+    pub target: IssueTargetArgs,
+    /// Label ID，可重复传入
+    #[arg(long = "label-id")]
+    pub label_ids: Vec<u64>,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct IssueLabelRemoveArgs {
+    #[command(flatten)]
+    pub target: IssueTargetArgs,
+    /// Label ID
+    #[arg(long = "label-id")]
+    pub label_id: u64,
+    /// 确认执行危险操作
+    #[arg(long)]
+    pub yes: bool,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct IssueDangerousTargetArgs {
+    #[command(flatten)]
+    pub target: IssueTargetArgs,
+    /// 确认执行危险操作
+    #[arg(long)]
+    pub yes: bool,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct IssueTimeListArgs {
+    #[command(flatten)]
+    pub target: IssueTargetArgs,
+    #[command(flatten)]
+    pub page: PageArgs,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct IssueTimeAddArgs {
+    #[command(flatten)]
+    pub target: IssueTargetArgs,
+    /// 要增加的秒数
+    #[arg(long = "seconds")]
+    pub seconds: u64,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct IssueTimeDeleteArgs {
+    #[command(flatten)]
+    pub target: IssueTargetArgs,
+    /// Time entry ID
+    #[arg(long)]
+    pub id: u64,
+    /// 确认执行危险操作
+    #[arg(long)]
+    pub yes: bool,
 }
 
 #[derive(Debug, Clone, Args)]
@@ -643,6 +829,190 @@ fn plan_issues(command: &IssuesCommand) -> Result<PlannedCommand> {
                 Value::Object(params),
             ))
         }
+        IssuesSubcommand::Create(args) => {
+            let mut params = Map::new();
+            params.insert("method".to_string(), json!("create"));
+            params.insert("owner".to_string(), json!(args.owner));
+            params.insert("repo".to_string(), json!(args.repo));
+            params.insert("title".to_string(), json!(args.title));
+            insert_optional_string(&mut params, "body", args.body.as_deref());
+            insert_optional_string(&mut params, "ref", args.git_ref.as_deref());
+            insert_optional_string(&mut params, "deadline", args.deadline.as_deref());
+            insert_optional_u64(&mut params, "milestone", args.milestone);
+            insert_optional_string_list(&mut params, "assignees", &args.assignees);
+            insert_optional_u64_list(&mut params, "labels", &args.label_ids);
+            Ok(PlannedCommand::tool_call(
+                "issue_write",
+                Value::Object(params),
+            ))
+        }
+        IssuesSubcommand::Update(args) => {
+            let mut params = Map::new();
+            params.insert("method".to_string(), json!("update"));
+            params.insert("owner".to_string(), json!(args.target.owner));
+            params.insert("repo".to_string(), json!(args.target.repo));
+            params.insert("index".to_string(), json!(args.target.index));
+            insert_optional_string(&mut params, "title", args.title.as_deref());
+            insert_optional_string(&mut params, "body", args.body.as_deref());
+            insert_optional_string(&mut params, "state", args.state.as_deref());
+            insert_optional_string(&mut params, "ref", args.git_ref.as_deref());
+            insert_optional_string(&mut params, "deadline", args.deadline.as_deref());
+            insert_optional_u64(&mut params, "milestone", args.milestone);
+            insert_optional_string_list(&mut params, "assignees", &args.assignees);
+            insert_optional_u64_list(&mut params, "labels", &args.label_ids);
+            if args.remove_deadline {
+                params.insert("remove_deadline".to_string(), json!(true));
+            }
+            Ok(PlannedCommand::tool_call(
+                "issue_write",
+                Value::Object(params),
+            ))
+        }
+        IssuesSubcommand::CommentAdd(args) => Ok(PlannedCommand::tool_call(
+            "issue_write",
+            json!({
+                "method": "add_comment",
+                "owner": args.target.owner,
+                "repo": args.target.repo,
+                "index": args.target.index,
+                "body": args.body
+            }),
+        )),
+        IssuesSubcommand::CommentEdit(args) => Ok(PlannedCommand::tool_call(
+            "issue_write",
+            json!({
+                "method": "edit_comment",
+                "owner": args.target.owner,
+                "repo": args.target.repo,
+                "index": args.target.index,
+                "commentID": args.comment_id,
+                "body": args.body
+            }),
+        )),
+        IssuesSubcommand::Labels(args) => Ok(PlannedCommand::tool_call(
+            "issue_read",
+            json!({
+                "owner": args.owner,
+                "repo": args.repo,
+                "index": args.index,
+                "method": "get_labels"
+            }),
+        )),
+        IssuesSubcommand::LabelsAdd(args) => Ok(PlannedCommand::tool_call(
+            "issue_write",
+            json!({
+                "method": "add_labels",
+                "owner": args.target.owner,
+                "repo": args.target.repo,
+                "index": args.target.index,
+                "labels": args.label_ids
+            }),
+        )),
+        IssuesSubcommand::LabelRemove(args) => {
+            require_yes(args.yes, "删除 issue label")?;
+            Ok(PlannedCommand::tool_call(
+                "issue_write",
+                json!({
+                    "method": "remove_label",
+                    "owner": args.target.owner,
+                    "repo": args.target.repo,
+                    "index": args.target.index,
+                    "label_id": args.label_id
+                }),
+            ))
+        }
+        IssuesSubcommand::LabelsReplace(args) => Ok(PlannedCommand::tool_call(
+            "issue_write",
+            json!({
+                "method": "replace_labels",
+                "owner": args.target.owner,
+                "repo": args.target.repo,
+                "index": args.target.index,
+                "labels": args.label_ids
+            }),
+        )),
+        IssuesSubcommand::LabelsClear(args) => {
+            require_yes(args.yes, "清空 issue labels")?;
+            Ok(PlannedCommand::tool_call(
+                "issue_write",
+                json!({
+                    "method": "clear_labels",
+                    "owner": args.target.owner,
+                    "repo": args.target.repo,
+                    "index": args.target.index
+                }),
+            ))
+        }
+        IssuesSubcommand::Time(command) => plan_issue_time(command),
+    }
+}
+
+fn plan_issue_time(command: &IssueTimeCommand) -> Result<PlannedCommand> {
+    match &command.command {
+        IssueTimeSubcommand::List(args) => Ok(PlannedCommand::tool_call(
+            "timetracking_read",
+            json!({
+                "method": "list_issue_times",
+                "owner": args.target.owner,
+                "repo": args.target.repo,
+                "index": args.target.index,
+                "page": args.page.page,
+                "perPage": args.page.page_size
+            }),
+        )),
+        IssueTimeSubcommand::Start(args) => Ok(PlannedCommand::tool_call(
+            "timetracking_write",
+            json!({
+                "method": "start_stopwatch",
+                "owner": args.owner,
+                "repo": args.repo,
+                "index": args.index
+            }),
+        )),
+        IssueTimeSubcommand::Stop(args) => Ok(PlannedCommand::tool_call(
+            "timetracking_write",
+            json!({
+                "method": "stop_stopwatch",
+                "owner": args.owner,
+                "repo": args.repo,
+                "index": args.index
+            }),
+        )),
+        IssueTimeSubcommand::ResetStopwatch(args) => {
+            require_yes(args.yes, "清空 issue stopwatch")?;
+            Ok(PlannedCommand::tool_call(
+                "timetracking_write",
+                json!({
+                    "method": "delete_stopwatch",
+                    "owner": args.target.owner,
+                    "repo": args.target.repo,
+                    "index": args.target.index
+                }),
+            ))
+        }
+        IssueTimeSubcommand::Add(args) => Ok(PlannedCommand::tool_call(
+            "timetracking_write",
+            json!({
+                "method": "add_time",
+                "owner": args.target.owner,
+                "repo": args.target.repo,
+                "index": args.target.index,
+                "time": args.seconds
+            }),
+        )),
+        IssueTimeSubcommand::Delete(args) => {
+            require_yes(args.yes, "删除 issue time 记录")?;
+            Ok(PlannedCommand::tool_call(
+                "timetracking_write",
+                json!({
+                    "method": "delete_time",
+                    "owner": args.target.owner,
+                    "repo": args.target.repo,
+                    "index": args.target.index,
+                    "id": args.id
+                }),
+            ))
+        }
     }
 }
 
@@ -853,6 +1223,32 @@ fn plan_mcp(command: &McpCommand) -> Result<PlannedCommand> {
 fn insert_optional_string(target: &mut Map<String, Value>, key: &str, value: Option<&str>) {
     if let Some(value) = value {
         target.insert(key.to_string(), json!(value));
+    }
+}
+
+fn insert_optional_u64(target: &mut Map<String, Value>, key: &str, value: Option<u64>) {
+    if let Some(value) = value {
+        target.insert(key.to_string(), json!(value));
+    }
+}
+
+fn insert_optional_string_list(target: &mut Map<String, Value>, key: &str, values: &[String]) {
+    if !values.is_empty() {
+        target.insert(key.to_string(), json!(values));
+    }
+}
+
+fn insert_optional_u64_list(target: &mut Map<String, Value>, key: &str, values: &[u64]) {
+    if !values.is_empty() {
+        target.insert(key.to_string(), json!(values));
+    }
+}
+
+fn require_yes(confirmed: bool, action: &str) -> Result<()> {
+    if confirmed {
+        Ok(())
+    } else {
+        bail!("危险操作需要显式传入 --yes 后才会执行: {action}");
     }
 }
 
