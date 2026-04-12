@@ -285,6 +285,18 @@ cargo fmt
 make install-local
 ```
 
+## GitHub Actions Build And Release
+
+- 推送到 `main`、提交 Pull Request，或手动触发 workflow 时，会执行 `.github/workflows/build.yml`
+  在 Linux、macOS、Windows 上编译 `release` 二进制，并把压缩包上传为 workflow artifacts。
+
+- 推送 `v*` 标签时，会执行 `.github/workflows/release.yml`
+  在三种操作系统上重新构建二进制，并自动创建或更新对应的 GitHub Release，上传可下载的压缩包。
+
+- 当前产物格式：
+  Linux / macOS 为 `tar.gz`
+  Windows 为 `zip`
+
 ## Roadmap
 
 - 补充 labels、milestones、releases、wiki 等高层命令
