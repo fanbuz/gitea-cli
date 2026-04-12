@@ -1,0 +1,23 @@
+[package]
+name = "gitea-cli"
+version = "0.0.1"
+edition = "2024"
+description = "CLI wrapper around a configured Gitea MCP server"
+license = "MIT"
+repository = "https://github.com/Mashull/gitea-cli"
+readme = "README.md"
+keywords = ["gitea", "mcp", "cli", "codex", "automation"]
+categories = ["command-line-utilities", "development-tools"]
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+dirs = "6"
+regex = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+which = "8"
+
+[dev-dependencies]
+tempfile = "3"
