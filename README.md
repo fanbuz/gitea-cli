@@ -20,6 +20,7 @@
 - 复用 `~/.codex/config.toml` 里的 `gitea` MCP 配置
 - 通过 stdio 与已配置的 Gitea MCP Server 通信，不重新发明鉴权
 - 提供 `doctor` 健康检查，自动脱敏敏感参数
+- 支持 `--fields` 对 JSON 输出做字段裁剪，降低 agent 调用时的 token 噪音
 - 提供仓库、Issue、PR、Actions 等常见排查命令
 - 提供 issue 创建、更新、评论、label 维护、milestone 管理与 time tracking 高层命令
 - 当 MCP 返回单条 JSON 文本内容时，自动补充 `result.parsed`
@@ -86,6 +87,12 @@ make install-local
 cargo run -- --json doctor
 ```
 
+如果你希望在 agent 或脚本场景里减少不必要的输出字段，也可以配合 `--fields`：
+
+```bash
+cargo run -- --json --fields kind,cli.version,issues doctor
+```
+
 ## Quick Start
 
 检查配置和 MCP 连通性：
@@ -112,6 +119,12 @@ gitea-cli --json me
 gitea-cli --json issues get --owner YOUR_ORG --repo YOUR_REPO --index 123
 ```
 
+只输出关心的关键字段：
+
+```bash
+gitea-cli --json --fields kind,result.parsed.id,result.parsed.title issues get --owner YOUR_ORG --repo YOUR_REPO --index 123
+```
+
 解析 Gitea URL：
 
 ```bash
@@ -125,6 +138,14 @@ gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_
 ```
 
 ## Command Surface
+
+全局参数补充：
+
+- `--json`
+  输出 JSON，适合与 agent、脚本、`jq` 等组合使用。
+
+- `--fields`
+  仅在 JSON 输出中保留指定字段，支持逗号分隔和点号路径，例如 `kind,result.parsed.id,result.parsed.title`。
 
 ### Health
 
