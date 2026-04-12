@@ -293,6 +293,9 @@ make install-local
 - 推送 `v*` 标签时，会执行 `.github/workflows/release.yml`
   在三种操作系统上重新构建二进制，并自动创建或更新对应的 GitHub Release，上传可下载的压缩包。
 
+- 如果某个历史标签早于 workflow 提交，比如已经存在的 `v0.0.1`
+  可以在 GitHub Actions 页面手动触发 `Release Binaries`，并把 `tag` 输入设为对应版本号，补发 release 产物。
+
 - 当前产物格式：
   Linux / macOS 为 `tar.gz`
   Windows 为 `zip`

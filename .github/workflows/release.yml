@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to build and publish
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -26,6 +32,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
 
       - name: Install Rust toolchain (Unix)
         if: runner.os != 'Windows'
@@ -113,7 +121,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG_NAME: ${{ github.ref_name }}
+          TAG_NAME: ${{ github.event.inputs.tag || github.ref_name }}
         run: |
           mapfile -t files < <(find release-assets -type f | sort)
           if [ "${#files[@]}" -eq 0 ]; then
