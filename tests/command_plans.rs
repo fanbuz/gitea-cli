@@ -1,4 +1,15 @@
+use clap::CommandFactory;
 use gitea_cli::cli::{Cli, PlannedCommand, plan_command};
+
+fn render_help(mut command: clap::Command) -> String {
+    let mut output = Vec::new();
+    command.write_long_help(&mut output).unwrap();
+    String::from_utf8(output).unwrap()
+}
+
+fn find_subcommand<'a>(command: &'a mut clap::Command, name: &str) -> &'a mut clap::Command {
+    command.find_subcommand_mut(name).unwrap()
+}
 
 #[test]
 fn issue_get_maps_to_issue_read() {
@@ -338,4 +349,40 @@ fn commits_get_maps_to_get_commit() {
             })
         )
     );
+}
+
+#[test]
+fn top_level_help_includes_command_descriptions() {
+    let help = render_help(Cli::command());
+
+    assert!(help.contains("doctor    检查 gitea-cli 与底层 Gitea MCP 配置是否可用"));
+    assert!(help.contains("issues    查询 issue 列表、详情、评论与跨仓库搜索"));
+    assert!(help.contains("releases  查询仓库 release 列表、最新版本和单个 release"));
+}
+
+#[test]
+fn issues_help_includes_subcommand_descriptions() {
+    let mut root = Cli::command();
+    let issues_help = render_help(find_subcommand(&mut root, "issues").clone());
+
+    assert!(issues_help.contains("list      列出仓库 issue 列表"));
+    assert!(issues_help.contains("get       读取单个 issue 详情"));
+    assert!(issues_help.contains("comments  读取单个 issue 的评论列表"));
+    assert!(issues_help.contains("search    按关键词跨仓库搜索 issue 或 pull request"));
+}
+
+#[test]
+fn issues_list_help_includes_option_descriptions() {
+    let mut root = Cli::command();
+    let issues = find_subcommand(&mut root, "issues");
+    let issues_list_help = render_help(find_subcommand(issues, "list").clone());
+
+    assert!(issues_list_help.contains("--owner <OWNER>"));
+    assert!(issues_list_help.contains("Gitea 仓库所属 owner 或组织"));
+    assert!(issues_list_help.contains("--repo <REPO>"));
+    assert!(issues_list_help.contains("Gitea 仓库名"));
+    assert!(issues_list_help.contains("--state <STATE>"));
+    assert!(issues_list_help.contains("Issue 状态过滤，默认 open"));
+    assert!(issues_list_help.contains("--page-size <PAGE_SIZE>"));
+    assert!(issues_list_help.contains("每页返回条数"));
 }

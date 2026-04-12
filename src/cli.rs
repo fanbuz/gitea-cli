@@ -51,18 +51,31 @@ impl Cli {
 
 #[derive(Debug, Clone, Subcommand)]
 pub enum Command {
+    /// 检查 gitea-cli 与底层 Gitea MCP 配置是否可用
     Doctor,
+    /// 查看 gitea-cli 封装后的 MCP 工具能力
     Tools(ToolsCommand),
+    /// 读取当前认证用户信息
     Me,
+    /// 查询当前用户可访问的组织
     Orgs(OrgsCommand),
+    /// 查询仓库列表、分支和文件树
     Repos(ReposCommand),
+    /// 查询仓库 release 列表、最新版本和单个 release
     Releases(ReleasesCommand),
+    /// 查询仓库 tag 列表和单个 tag 详情
     Tags(TagsCommand),
+    /// 查询提交历史和单个 commit 详情
     Commits(CommitsCommand),
+    /// 查询 issue 列表、详情、评论与跨仓库搜索
     Issues(IssuesCommand),
+    /// 查询 pull request 列表、详情和 diff
     Pulls(PullsCommand),
+    /// 查询 Actions workflow、run、job 与日志预览
     Actions(ActionsCommand),
+    /// 从 Gitea URL 解析 owner、repo、issue 或 pull 坐标
     Resolve(ResolveCommand),
+    /// 直接调用底层 MCP 工具，作为原始逃生口
     Mcp(McpCommand),
 }
 
@@ -74,6 +87,7 @@ pub struct ToolsCommand {
 
 #[derive(Debug, Clone, Subcommand)]
 pub enum ToolsSubcommand {
+    /// 列出 gitea-cli 已封装的工具能力
     List,
 }
 
@@ -85,6 +99,7 @@ pub struct OrgsCommand {
 
 #[derive(Debug, Clone, Subcommand)]
 pub enum OrgsSubcommand {
+    /// 列出当前用户可访问的组织
     List(PageArgs),
 }
 
@@ -96,8 +111,11 @@ pub struct ReposCommand {
 
 #[derive(Debug, Clone, Subcommand)]
 pub enum ReposSubcommand {
+    /// 列出当前用户仓库，或按组织列出仓库
     List(RepoListArgs),
+    /// 列出指定仓库的分支
     Branches(RepoTargetWithPageArgs),
+    /// 读取指定仓库在某个 ref 下的文件树
     Tree(RepoTreeArgs),
 }
 
@@ -109,8 +127,11 @@ pub struct ReleasesCommand {
 
 #[derive(Debug, Clone, Subcommand)]
 pub enum ReleasesSubcommand {
+    /// 列出指定仓库的 release 列表
     List(RepoTargetWithPageArgs),
+    /// 读取指定仓库的最新 release
     Latest(RepoTargetArgs),
+    /// 按 ID 读取单个 release 详情
     Get(ReleaseTargetArgs),
 }
 
@@ -122,7 +143,9 @@ pub struct TagsCommand {
 
 #[derive(Debug, Clone, Subcommand)]
 pub enum TagsSubcommand {
+    /// 列出指定仓库的 tag 列表
     List(RepoTargetWithPageArgs),
+    /// 按名称读取单个 tag 详情
     Get(TagTargetArgs),
 }
 
@@ -134,7 +157,9 @@ pub struct CommitsCommand {
 
 #[derive(Debug, Clone, Subcommand)]
 pub enum CommitsSubcommand {
+    /// 列出指定仓库的提交历史
     List(CommitsListArgs),
+    /// 按 SHA 读取单个 commit 详情
     Get(CommitTargetArgs),
 }
 
@@ -146,9 +171,13 @@ pub struct IssuesCommand {
 
 #[derive(Debug, Clone, Subcommand)]
 pub enum IssuesSubcommand {
+    /// 列出仓库 issue 列表
     List(IssuesListArgs),
+    /// 读取单个 issue 详情
     Get(IssueTargetArgs),
+    /// 读取单个 issue 的评论列表
     Comments(IssueTargetArgs),
+    /// 按关键词跨仓库搜索 issue 或 pull request
     Search(IssueSearchArgs),
 }
 
@@ -160,8 +189,11 @@ pub struct PullsCommand {
 
 #[derive(Debug, Clone, Subcommand)]
 pub enum PullsSubcommand {
+    /// 列出仓库 pull request 列表
     List(PullsListArgs),
+    /// 读取单个 pull request 详情
     Get(PullTargetArgs),
+    /// 读取单个 pull request 的 diff
     Diff(PullDiffArgs),
 }
 
@@ -173,9 +205,13 @@ pub struct ActionsCommand {
 
 #[derive(Debug, Clone, Subcommand)]
 pub enum ActionsSubcommand {
+    /// 列出指定仓库的 workflow
     Workflows(RepoTargetArgs),
+    /// 列出指定仓库的 workflow runs
     Runs(ActionsRunsArgs),
+    /// 列出仓库 jobs，或按 run 读取 jobs
     Jobs(ActionsJobsArgs),
+    /// 预览某个 job 的日志尾部
     LogPreview(ActionsLogPreviewArgs),
 }
 
@@ -187,13 +223,17 @@ pub struct ResolveCommand {
 
 #[derive(Debug, Clone, Subcommand)]
 pub enum ResolveSubcommand {
+    /// 解析仓库 URL
     Repo(ResolveUrlArgs),
+    /// 解析 issue URL
     Issue(ResolveUrlArgs),
+    /// 解析 pull request URL
     Pull(ResolveUrlArgs),
 }
 
 #[derive(Debug, Clone, Args)]
 pub struct ResolveUrlArgs {
+    /// 要解析的 Gitea 页面 URL
     pub url: String,
 }
 
@@ -205,28 +245,35 @@ pub struct McpCommand {
 
 #[derive(Debug, Clone, Subcommand)]
 pub enum McpSubcommand {
+    /// 直接调用底层 MCP 工具
     Call(McpCallArgs),
 }
 
 #[derive(Debug, Clone, Args)]
 pub struct McpCallArgs {
+    /// 底层 MCP 工具名
     pub tool_name: String,
+    /// 传给底层 MCP 工具的 JSON 参数
     #[arg(long, default_value = "{}")]
     pub params: String,
 }
 
 #[derive(Debug, Clone, Args)]
 pub struct PageArgs {
+    /// 页码，从 1 开始
     #[arg(long, default_value_t = 1)]
     pub page: u32,
+    /// 每页返回条数
     #[arg(long = "page-size", default_value_t = 30)]
     pub page_size: u32,
 }
 
 #[derive(Debug, Clone, Args)]
 pub struct RepoTargetArgs {
+    /// Gitea 仓库所属 owner 或组织
     #[arg(long)]
     pub owner: String,
+    /// Gitea 仓库名
     #[arg(long)]
     pub repo: String,
 }
@@ -241,6 +288,7 @@ pub struct RepoTargetWithPageArgs {
 
 #[derive(Debug, Clone, Args)]
 pub struct RepoListArgs {
+    /// 组织名；不传时列出当前用户自己的仓库
     #[arg(long)]
     pub owner: Option<String>,
     #[command(flatten)]
@@ -251,54 +299,71 @@ pub struct RepoListArgs {
 pub struct RepoTreeArgs {
     #[command(flatten)]
     pub target: RepoTargetArgs,
+    /// 要读取的分支、tag 或 commit，默认 main
     #[arg(long = "ref", default_value = "main")]
     pub git_ref: String,
+    /// 是否递归展开整个文件树
     #[arg(long)]
     pub recursive: bool,
+    /// 页码，从 1 开始
     #[arg(long, default_value_t = 1)]
     pub page: u32,
+    /// 每页返回条数
     #[arg(long = "page-size", default_value_t = 100)]
     pub page_size: u32,
 }
 
 #[derive(Debug, Clone, Args)]
 pub struct ReleaseTargetArgs {
+    /// Gitea 仓库所属 owner 或组织
     #[arg(long)]
     pub owner: String,
+    /// Gitea 仓库名
     #[arg(long)]
     pub repo: String,
+    /// Release ID
     #[arg(long)]
     pub id: u64,
 }
 
 #[derive(Debug, Clone, Args)]
 pub struct TagTargetArgs {
+    /// Gitea 仓库所属 owner 或组织
     #[arg(long)]
     pub owner: String,
+    /// Gitea 仓库名
     #[arg(long)]
     pub repo: String,
+    /// Tag 名称
     #[arg(long = "tag")]
     pub tag_name: String,
 }
 
 #[derive(Debug, Clone, Args)]
 pub struct CommitTargetArgs {
+    /// Gitea 仓库所属 owner 或组织
     #[arg(long)]
     pub owner: String,
+    /// Gitea 仓库名
     #[arg(long)]
     pub repo: String,
+    /// Commit SHA
     #[arg(long)]
     pub sha: String,
 }
 
 #[derive(Debug, Clone, Args)]
 pub struct CommitsListArgs {
+    /// Gitea 仓库所属 owner 或组织
     #[arg(long)]
     pub owner: String,
+    /// Gitea 仓库名
     #[arg(long)]
     pub repo: String,
+    /// 起始分支、tag 或 commit SHA
     #[arg(long)]
     pub sha: Option<String>,
+    /// 只返回包含指定文件或目录路径的提交
     #[arg(long)]
     pub path: Option<String>,
     #[command(flatten)]
@@ -307,26 +372,35 @@ pub struct CommitsListArgs {
 
 #[derive(Debug, Clone, Args)]
 pub struct IssueTargetArgs {
+    /// Gitea 仓库所属 owner 或组织
     #[arg(long)]
     pub owner: String,
+    /// Gitea 仓库名
     #[arg(long)]
     pub repo: String,
+    /// Issue 编号
     #[arg(long)]
     pub index: u64,
 }
 
 #[derive(Debug, Clone, Args)]
 pub struct IssuesListArgs {
+    /// Gitea 仓库所属 owner 或组织
     #[arg(long)]
     pub owner: String,
+    /// Gitea 仓库名
     #[arg(long)]
     pub repo: String,
+    /// Issue 状态过滤，默认 open
     #[arg(long, default_value = "open")]
     pub state: String,
+    /// 按标签过滤，可重复传入
     #[arg(long)]
     pub labels: Vec<String>,
+    /// 仅返回此时间之后更新的 issue
     #[arg(long)]
     pub since: Option<String>,
+    /// 仅返回此时间之前更新的 issue
     #[arg(long)]
     pub before: Option<String>,
     #[command(flatten)]
@@ -335,26 +409,35 @@ pub struct IssuesListArgs {
 
 #[derive(Debug, Clone, Args)]
 pub struct IssueSearchArgs {
+    /// 搜索关键词
     #[arg(long)]
     pub query: String,
+    /// 限定 owner 或组织
     #[arg(long)]
     pub owner: Option<String>,
+    /// 按状态过滤
     #[arg(long)]
     pub state: Option<String>,
+    /// 按标签过滤，可重复传入
     #[arg(long)]
     pub labels: Vec<String>,
+    /// 页码，从 1 开始
     #[arg(long, default_value_t = 1)]
     pub page: u32,
+    /// 每页返回条数
     #[arg(long = "page-size", default_value_t = 30)]
     pub page_size: u32,
 }
 
 #[derive(Debug, Clone, Args)]
 pub struct PullTargetArgs {
+    /// Gitea 仓库所属 owner 或组织
     #[arg(long)]
     pub owner: String,
+    /// Gitea 仓库名
     #[arg(long)]
     pub repo: String,
+    /// Pull request 编号
     #[arg(long)]
     pub index: u64,
 }
@@ -363,20 +446,26 @@ pub struct PullTargetArgs {
 pub struct PullDiffArgs {
     #[command(flatten)]
     pub target: PullTargetArgs,
+    /// 是否包含二进制文件变更
     #[arg(long)]
     pub binary: bool,
 }
 
 #[derive(Debug, Clone, Args)]
 pub struct PullsListArgs {
+    /// Gitea 仓库所属 owner 或组织
     #[arg(long)]
     pub owner: String,
+    /// Gitea 仓库名
     #[arg(long)]
     pub repo: String,
+    /// Pull request 状态过滤，默认 open
     #[arg(long, default_value = "open")]
     pub state: String,
+    /// 排序方式
     #[arg(long)]
     pub sort: Option<String>,
+    /// 里程碑编号过滤
     #[arg(long)]
     pub milestone: Option<u64>,
     #[command(flatten)]
@@ -387,6 +476,7 @@ pub struct PullsListArgs {
 pub struct ActionsRunsArgs {
     #[command(flatten)]
     pub target: RepoTargetArgs,
+    /// 按运行状态过滤
     #[arg(long)]
     pub status: Option<String>,
     #[command(flatten)]
@@ -397,8 +487,10 @@ pub struct ActionsRunsArgs {
 pub struct ActionsJobsArgs {
     #[command(flatten)]
     pub target: RepoTargetArgs,
+    /// 指定 workflow run ID；不传则列出仓库 jobs
     #[arg(long = "run-id")]
     pub run_id: Option<u64>,
+    /// 按 job 状态过滤
     #[arg(long)]
     pub status: Option<String>,
     #[command(flatten)]
@@ -407,14 +499,19 @@ pub struct ActionsJobsArgs {
 
 #[derive(Debug, Clone, Args)]
 pub struct ActionsLogPreviewArgs {
+    /// Gitea 仓库所属 owner 或组织
     #[arg(long)]
     pub owner: String,
+    /// Gitea 仓库名
     #[arg(long)]
     pub repo: String,
+    /// Job ID
     #[arg(long = "job-id")]
     pub job_id: u64,
+    /// 只返回日志尾部的行数
     #[arg(long = "tail-lines")]
     pub tail_lines: Option<u64>,
+    /// 返回日志的最大字节数
     #[arg(long = "max-bytes")]
     pub max_bytes: Option<u64>,
 }
