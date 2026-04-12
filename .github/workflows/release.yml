@@ -169,7 +169,6 @@ jobs:
     name: notify-homebrew-tap
     needs: publish
     runs-on: ubuntu-latest
-    if: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
 
     steps:
       - name: Dispatch homebrew formula sync via repository_dispatch
