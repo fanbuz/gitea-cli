@@ -12,6 +12,17 @@ fn release_publish_job_checks_out_repository() {
 }
 
 #[test]
+fn release_publish_job_sets_repository_explicitly_for_gh() {
+    let workflow = fs::read_to_string(".github/workflows/release.yml").unwrap();
+    let publish_section = extract_publish_section(&workflow);
+
+    assert!(
+        publish_section.contains("GH_REPO: ${{ github.repository }}"),
+        "publish job should set GH_REPO explicitly so gh does not depend on local git detection"
+    );
+}
+
+#[test]
 fn release_publish_job_detection_supports_crlf() {
     let workflow = "\
 name: Release Binaries\r\n\
