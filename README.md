@@ -1,6 +1,6 @@
 # gitea-cli
 
-[![Version](https://img.shields.io/badge/version-0.0.2-blue)](https://github.com/Mashull/gitea-cli/releases/tag/v0.0.2)
+[![Version](https://img.shields.io/badge/version-0.0.3-blue)](https://github.com/Mashull/gitea-cli/releases/tag/v0.0.3)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 
 `gitea-cli` 是一个用 Rust 实现的本地命令行工具，用来把已经配置好的 Gitea MCP Server 暴露成可复用的 shell CLI。
@@ -149,7 +149,7 @@ gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_
 - `gitea-cli --json tags list --owner YOUR_ORG --repo YOUR_REPO`
   列出某个仓库的 tag，适合排查版本标记和发布点。
 
-- `gitea-cli --json tags get --owner YOUR_ORG --repo YOUR_REPO --tag v0.0.2`
+- `gitea-cli --json tags get --owner YOUR_ORG --repo YOUR_REPO --tag YOUR_TAG`
   按 tag 名读取单个 tag 详情。
 
 ### Commits
