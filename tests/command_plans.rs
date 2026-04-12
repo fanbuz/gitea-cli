@@ -361,6 +361,13 @@ fn top_level_help_includes_command_descriptions() {
 }
 
 #[test]
+fn top_level_help_includes_current_version() {
+    let help = render_help(Cli::command());
+
+    assert!(help.contains(&format!("当前版本: {}", env!("CARGO_PKG_VERSION"))));
+}
+
+#[test]
 fn issues_help_includes_subcommand_descriptions() {
     let mut root = Cli::command();
     let issues_help = render_help(find_subcommand(&mut root, "issues").clone());

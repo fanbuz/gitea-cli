@@ -133,6 +133,10 @@ fn run_doctor() -> Result<Value> {
     Ok(json!({
         "ok": issues.is_empty(),
         "kind": "doctor",
+        "cli": {
+            "name": env!("CARGO_PKG_NAME"),
+            "version": env!("CARGO_PKG_VERSION")
+        },
         "config": {
             "path": config_path,
             "exists": config_exists

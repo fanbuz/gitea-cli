@@ -30,7 +30,8 @@ impl PlannedCommand {
 #[command(
     name = "gitea-cli",
     version,
-    about = "CLI wrapper around a configured Gitea MCP server"
+    about = "CLI wrapper around a configured Gitea MCP server",
+    after_help = concat!("当前版本: ", env!("CARGO_PKG_VERSION"))
 )]
 pub struct Cli {
     #[arg(long, global = true, help = "输出紧凑 JSON")]
