@@ -2,7 +2,7 @@
 
 Date: 2026-04-12
 Status: Approved for implementation
-Target version: next minor after 0.0.5
+Target version: 0.0.6
 
 ## Goal
 
