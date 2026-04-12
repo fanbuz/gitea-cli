@@ -46,7 +46,24 @@ GITEA_ACCESS_TOKEN = "YOUR_TOKEN"
 
 ## Installation
 
-本地安装：
+推荐通过 Homebrew 安装：
+
+```bash
+brew tap fanbuz/tap
+brew install fanbuz/tap/gitea-cli
+```
+
+在已支持的平台上，Homebrew 会直接安装 GitHub Release 里的预编译二进制，不需要本地 Rust 编译环境。
+当目标平台暂时没有对应预编译包时，才会回退到源码构建。
+
+升级：
+
+```bash
+brew update
+brew upgrade gitea-cli
+```
+
+如果你希望本地从源码安装：
 
 ```bash
 git clone git@github.com:fanbuz/gitea-cli.git
