@@ -57,6 +57,7 @@ brew install fanbuz/tap/gitea-cli
 在已支持的平台上，Homebrew 会直接安装 GitHub Release 里的预编译二进制，不需要本地 Rust 编译环境。
 当前预编译覆盖：`macOS arm64`、`macOS amd64`、`Linux x64`、`Windows x64`。
 当目标平台暂时没有对应预编译包时，才会回退到源码构建。
+当仓库配置了 `HOMEBREW_TAP_TOKEN` 后，每次推送新的 `v*` release tag 也会自动通知 `fanbuz/homebrew-tap` 更新 `gitea-cli` formula。
 
 升级：
 
@@ -430,6 +431,9 @@ make install-local
 
 - 推送 `v*` 标签时，会执行 `.github/workflows/release.yml`
   在 `Linux x64`、`macOS arm64`、`macOS amd64`、`Windows x64` 上重新构建二进制，并自动创建或更新对应的 GitHub Release，上传可下载的压缩包。
+
+- 如果仓库配置了 `HOMEBREW_TAP_TOKEN`
+  release workflow 会在 GitHub Release 成功后，通过 `repository_dispatch` 通知 `fanbuz/homebrew-tap` 拉取最新 release 元数据并更新 `gitea-cli` formula。
 
 - 如果某个历史标签早于 workflow 提交，比如已经存在的 `v0.0.1`
   可以在 GitHub Actions 页面手动触发 `Release Binaries`，并把 `tag` 输入设为对应版本号，补发 release 产物。
