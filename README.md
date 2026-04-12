@@ -1,6 +1,6 @@
 # gitea-cli
 
-[![Version](https://img.shields.io/badge/version-0.0.4-blue)](https://github.com/fanbuz/gitea-cli/releases/tag/v0.0.4)
+[![Version](https://img.shields.io/badge/version-0.0.5-blue)](https://github.com/fanbuz/gitea-cli/releases/tag/v0.0.5)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 
 `gitea-cli` 是一个用 Rust 实现的本地命令行工具，用来把已经配置好的 Gitea MCP Server 暴露成可复用的 shell CLI。
@@ -54,6 +54,7 @@ brew install fanbuz/tap/gitea-cli
 ```
 
 在已支持的平台上，Homebrew 会直接安装 GitHub Release 里的预编译二进制，不需要本地 Rust 编译环境。
+当前预编译覆盖：`macOS arm64`、`macOS amd64`、`Linux x64`、`Windows x64`。
 当目标平台暂时没有对应预编译包时，才会回退到源码构建。
 
 升级：
@@ -333,10 +334,10 @@ make install-local
 ## GitHub Actions Build And Release
 
 - 推送到 `main`、提交 Pull Request，或手动触发 workflow 时，会执行 `.github/workflows/build.yml`
-  在 Linux、macOS、Windows 上编译 `release` 二进制，并把压缩包上传为 workflow artifacts。
+  在 `Linux x64`、`macOS arm64`、`macOS amd64`、`Windows x64` 上编译 `release` 二进制，并把压缩包上传为 workflow artifacts。
 
 - 推送 `v*` 标签时，会执行 `.github/workflows/release.yml`
-  在三种操作系统上重新构建二进制，并自动创建或更新对应的 GitHub Release，上传可下载的压缩包。
+  在 `Linux x64`、`macOS arm64`、`macOS amd64`、`Windows x64` 上重新构建二进制，并自动创建或更新对应的 GitHub Release，上传可下载的压缩包。
 
 - 如果某个历史标签早于 workflow 提交，比如已经存在的 `v0.0.1`
   可以在 GitHub Actions 页面手动触发 `Release Binaries`，并把 `tag` 输入设为对应版本号，补发 release 产物。
