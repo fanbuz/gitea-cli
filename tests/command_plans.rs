@@ -225,6 +225,100 @@ fn releases_get_maps_to_get_release() {
 }
 
 #[test]
+fn releases_create_maps_to_create_release() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "releases",
+        "create",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--tag",
+        "v0.0.7",
+        "--title",
+        "v0.0.7",
+        "--target",
+        "main",
+        "--body",
+        "release notes",
+        "--draft",
+        "--pre-release",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "create_release",
+            serde_json::json!({
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "tag_name": "v0.0.7",
+                "title": "v0.0.7",
+                "target": "main",
+                "body": "release notes",
+                "is_draft": true,
+                "is_pre_release": true
+            })
+        )
+    );
+}
+
+#[test]
+fn releases_delete_requires_yes() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "releases",
+        "delete",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--id",
+        "12",
+    ])
+    .unwrap();
+
+    let error = plan_command(&cli).unwrap_err();
+
+    assert!(error.to_string().contains("--yes"));
+}
+
+#[test]
+fn releases_delete_maps_when_confirmed() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "releases",
+        "delete",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--id",
+        "12",
+        "--yes",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "delete_release",
+            serde_json::json!({
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "id": 12
+            })
+        )
+    );
+}
+
+#[test]
 fn tags_get_maps_to_get_tag() {
     let cli = Cli::try_parse_from([
         "gitea-cli",
@@ -249,6 +343,93 @@ fn tags_get_maps_to_get_tag() {
                 "owner": "XINTUKJ",
                 "repo": "simba-ehr-frontend",
                 "tag_name": "v0.0.2"
+            })
+        )
+    );
+}
+
+#[test]
+fn tags_create_maps_to_create_tag() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "tags",
+        "create",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--tag",
+        "v0.0.7",
+        "--target",
+        "main",
+        "--message",
+        "annotated tag",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "create_tag",
+            serde_json::json!({
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "tag_name": "v0.0.7",
+                "target": "main",
+                "message": "annotated tag"
+            })
+        )
+    );
+}
+
+#[test]
+fn tags_delete_requires_yes() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "tags",
+        "delete",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--tag",
+        "v0.0.7",
+    ])
+    .unwrap();
+
+    let error = plan_command(&cli).unwrap_err();
+
+    assert!(error.to_string().contains("--yes"));
+}
+
+#[test]
+fn tags_delete_maps_when_confirmed() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "tags",
+        "delete",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--tag",
+        "v0.0.7",
+        "--yes",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "delete_tag",
+            serde_json::json!({
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "tag_name": "v0.0.7"
             })
         )
     );
@@ -373,7 +554,12 @@ fn top_level_help_includes_command_descriptions() {
     assert!(help_has_command_description(
         &help,
         "releases",
-        "查询仓库 release 列表、最新版本和单个 release"
+        "查询和管理仓库 release"
+    ));
+    assert!(help_has_command_description(
+        &help,
+        "tags",
+        "查询和管理仓库 tag"
     ));
 }
 
@@ -409,6 +595,80 @@ fn issues_list_help_includes_option_descriptions() {
     assert!(issues_list_help.contains("Issue 状态过滤，默认 open"));
     assert!(issues_list_help.contains("--page-size <PAGE_SIZE>"));
     assert!(issues_list_help.contains("每页返回条数"));
+}
+
+#[test]
+fn releases_help_includes_write_subcommand_descriptions() {
+    let mut root = Cli::command();
+    let releases_help = render_help(find_subcommand(&mut root, "releases").clone());
+
+    assert!(help_has_command_description(
+        &releases_help,
+        "create",
+        "创建 release"
+    ));
+    assert!(help_has_command_description(
+        &releases_help,
+        "delete",
+        "删除 release"
+    ));
+}
+
+#[test]
+fn releases_create_help_includes_option_descriptions() {
+    let mut root = Cli::command();
+    let releases = find_subcommand(&mut root, "releases");
+    let create_help = render_help(find_subcommand(releases, "create").clone());
+
+    assert!(create_help.contains("--tag <TAG_NAME>"));
+    assert!(create_help.contains("Release 对应的 tag 名称"));
+    assert!(create_help.contains("--target <TARGET_REF>"));
+    assert!(create_help.contains("Release 指向的分支、tag 或 commit"));
+    assert!(create_help.contains("--pre-release"));
+    assert!(create_help.contains("创建 pre-release"));
+}
+
+#[test]
+fn releases_delete_help_mentions_yes_guard() {
+    let mut root = Cli::command();
+    let releases = find_subcommand(&mut root, "releases");
+    let delete_help = render_help(find_subcommand(releases, "delete").clone());
+
+    assert!(delete_help.contains("--yes"));
+    assert!(delete_help.contains("确认执行危险操作"));
+}
+
+#[test]
+fn tags_help_includes_write_subcommand_descriptions() {
+    let mut root = Cli::command();
+    let tags_help = render_help(find_subcommand(&mut root, "tags").clone());
+
+    assert!(help_has_command_description(&tags_help, "create", "创建 tag"));
+    assert!(help_has_command_description(&tags_help, "delete", "删除 tag"));
+}
+
+#[test]
+fn tags_create_help_includes_option_descriptions() {
+    let mut root = Cli::command();
+    let tags = find_subcommand(&mut root, "tags");
+    let create_help = render_help(find_subcommand(tags, "create").clone());
+
+    assert!(create_help.contains("--tag <TAG_NAME>"));
+    assert!(create_help.contains("Tag 名称"));
+    assert!(create_help.contains("--target <TARGET_REF>"));
+    assert!(create_help.contains("Tag 指向的分支、tag 或 commit"));
+    assert!(create_help.contains("--message <MESSAGE>"));
+    assert!(create_help.contains("Annotated tag 消息"));
+}
+
+#[test]
+fn tags_delete_help_mentions_yes_guard() {
+    let mut root = Cli::command();
+    let tags = find_subcommand(&mut root, "tags");
+    let delete_help = render_help(find_subcommand(tags, "delete").clone());
+
+    assert!(delete_help.contains("--yes"));
+    assert!(delete_help.contains("确认执行危险操作"));
 }
 
 #[test]

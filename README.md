@@ -22,6 +22,7 @@
 - 提供 `doctor` 健康检查，自动脱敏敏感参数
 - 提供仓库、Issue、PR、Actions 等常见排查命令
 - 提供 issue 创建、更新、评论、label 维护、milestone 管理与 time tracking 高层命令
+- 提供 release 与 tag 的创建、删除高层命令，覆盖常见版本对象写操作
 - 当 MCP 返回单条 JSON 文本内容时，自动补充 `result.parsed`
 - 保留 `mcp call` 原始出口，方便覆盖未封装的工具
 
@@ -164,6 +165,12 @@ gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_
 - `gitea-cli --json releases get --owner YOUR_ORG --repo YOUR_REPO --id 12`
   按 release ID 读取单个 release 详情。
 
+- `gitea-cli --json releases create --owner YOUR_ORG --repo YOUR_REPO --tag v0.0.7 --title "v0.0.7" --target main`
+  创建一个 release，可附带 `--body`、`--draft` 和 `--pre-release`。
+
+- `gitea-cli --json releases delete --owner YOUR_ORG --repo YOUR_REPO --id 12 --yes`
+  删除一个 release，属于危险操作，必须显式传 `--yes`。
+
 ### Tags
 
 - `gitea-cli --json tags list --owner YOUR_ORG --repo YOUR_REPO`
@@ -171,6 +178,12 @@ gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_
 
 - `gitea-cli --json tags get --owner YOUR_ORG --repo YOUR_REPO --tag YOUR_TAG`
   按 tag 名读取单个 tag 详情。
+
+- `gitea-cli --json tags create --owner YOUR_ORG --repo YOUR_REPO --tag v0.0.7 --target main`
+  创建一个 tag，可选附带 `--message` 用于 annotated tag。
+
+- `gitea-cli --json tags delete --owner YOUR_ORG --repo YOUR_REPO --tag v0.0.7 --yes`
+  删除一个 tag，属于危险操作，必须显式传 `--yes`。
 
 ### Commits
 
@@ -348,7 +361,7 @@ gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_
   暂未单独封装 `create branch`、`delete branch`。
 
 - [x] Release / Tag / Commit
-  已提供 `releases list/latest/get`、`tags list/get`、`commits list/get`。
+  已提供 `releases list/latest/get/create/delete`、`tags list/get/create/delete`、`commits list/get`。
 
 - [ ] 文件与目录内容管理
   暂未单独封装文件读取、目录读取、创建文件、更新文件、删除文件等高层命令。
@@ -401,7 +414,7 @@ gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_
 
 - 高层命令以排查与受控写操作为主
 - `mcp call` 是原始逃生口，理论上可以调用更多写操作工具
-- `issues label-remove`、`issues labels-clear`、`issues time reset-stopwatch`、`issues time delete`、`labels repo-delete`、`labels org-delete`、`milestones delete` 这类危险操作必须显式传 `--yes`
+- `issues label-remove`、`issues labels-clear`、`issues time reset-stopwatch`、`issues time delete`、`labels repo-delete`、`labels org-delete`、`milestones delete`、`releases delete`、`tags delete` 这类危险操作必须显式传 `--yes`
 - 其余写命令保持可脚本化，不额外弹确认
 
 ## Development

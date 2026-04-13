@@ -62,9 +62,9 @@ pub enum Command {
     Orgs(OrgsCommand),
     /// 查询仓库列表、分支和文件树
     Repos(ReposCommand),
-    /// 查询仓库 release 列表、最新版本和单个 release
+    /// 查询和管理仓库 release
     Releases(ReleasesCommand),
-    /// 查询仓库 tag 列表和单个 tag 详情
+    /// 查询和管理仓库 tag
     Tags(TagsCommand),
     /// 查询提交历史和单个 commit 详情
     Commits(CommitsCommand),
@@ -138,6 +138,10 @@ pub enum ReleasesSubcommand {
     Latest(RepoTargetArgs),
     /// 按 ID 读取单个 release 详情
     Get(ReleaseTargetArgs),
+    /// 创建 release
+    Create(ReleaseCreateArgs),
+    /// 删除 release
+    Delete(ReleaseDeleteArgs),
 }
 
 #[derive(Debug, Clone, Args)]
@@ -152,6 +156,10 @@ pub enum TagsSubcommand {
     List(RepoTargetWithPageArgs),
     /// 按名称读取单个 tag 详情
     Get(TagTargetArgs),
+    /// 创建 tag
+    Create(TagCreateArgs),
+    /// 删除 tag
+    Delete(TagDeleteArgs),
 }
 
 #[derive(Debug, Clone, Args)]
@@ -545,6 +553,42 @@ pub struct ReleaseTargetArgs {
 }
 
 #[derive(Debug, Clone, Args)]
+pub struct ReleaseCreateArgs {
+    #[command(flatten)]
+    pub target: RepoTargetArgs,
+    /// Release 对应的 tag 名称
+    #[arg(long = "tag")]
+    pub tag_name: String,
+    /// Release 标题
+    #[arg(long)]
+    pub title: String,
+    /// Release 指向的分支、tag 或 commit
+    #[arg(long = "target")]
+    pub target_ref: String,
+    /// Release 正文
+    #[arg(long)]
+    pub body: Option<String>,
+    /// 创建 draft release
+    #[arg(long)]
+    pub draft: bool,
+    /// 创建 pre-release
+    #[arg(long = "pre-release")]
+    pub pre_release: bool,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct ReleaseDeleteArgs {
+    #[command(flatten)]
+    pub target: RepoTargetArgs,
+    /// Release ID
+    #[arg(long)]
+    pub id: u64,
+    /// 确认执行危险操作
+    #[arg(long)]
+    pub yes: bool,
+}
+
+#[derive(Debug, Clone, Args)]
 pub struct MilestoneTargetArgs {
     #[command(flatten)]
     pub target: RepoTargetArgs,
@@ -626,6 +670,33 @@ pub struct TagTargetArgs {
     /// Tag 名称
     #[arg(long = "tag")]
     pub tag_name: String,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct TagCreateArgs {
+    #[command(flatten)]
+    pub target: RepoTargetArgs,
+    /// Tag 名称
+    #[arg(long = "tag")]
+    pub tag_name: String,
+    /// Tag 指向的分支、tag 或 commit
+    #[arg(long = "target")]
+    pub target_ref: Option<String>,
+    /// Annotated tag 消息
+    #[arg(long)]
+    pub message: Option<String>,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct TagDeleteArgs {
+    #[command(flatten)]
+    pub target: RepoTargetArgs,
+    /// Tag 名称
+    #[arg(long = "tag")]
+    pub tag_name: String,
+    /// 确认执行危险操作
+    #[arg(long)]
+    pub yes: bool,
 }
 
 #[derive(Debug, Clone, Args)]
@@ -1474,6 +1545,36 @@ fn plan_releases(command: &ReleasesCommand) -> Result<PlannedCommand> {
                 "id": args.id
             }),
         )),
+        ReleasesSubcommand::Create(args) => {
+            let mut params = Map::new();
+            params.insert("owner".to_string(), json!(args.target.owner));
+            params.insert("repo".to_string(), json!(args.target.repo));
+            params.insert("tag_name".to_string(), json!(args.tag_name));
+            params.insert("title".to_string(), json!(args.title));
+            params.insert("target".to_string(), json!(args.target_ref));
+            insert_optional_string(&mut params, "body", args.body.as_deref());
+            if args.draft {
+                params.insert("is_draft".to_string(), json!(true));
+            }
+            if args.pre_release {
+                params.insert("is_pre_release".to_string(), json!(true));
+            }
+            Ok(PlannedCommand::tool_call(
+                "create_release",
+                Value::Object(params),
+            ))
+        }
+        ReleasesSubcommand::Delete(args) => {
+            require_yes(args.yes, "删除 release")?;
+            Ok(PlannedCommand::tool_call(
+                "delete_release",
+                json!({
+                    "owner": args.target.owner,
+                    "repo": args.target.repo,
+                    "id": args.id
+                }),
+            ))
+        }
     }
 }
 
@@ -1496,6 +1597,29 @@ fn plan_tags(command: &TagsCommand) -> Result<PlannedCommand> {
                 "tag_name": args.tag_name
             }),
         )),
+        TagsSubcommand::Create(args) => {
+            let mut params = Map::new();
+            params.insert("owner".to_string(), json!(args.target.owner));
+            params.insert("repo".to_string(), json!(args.target.repo));
+            params.insert("tag_name".to_string(), json!(args.tag_name));
+            insert_optional_string(&mut params, "target", args.target_ref.as_deref());
+            insert_optional_string(&mut params, "message", args.message.as_deref());
+            Ok(PlannedCommand::tool_call(
+                "create_tag",
+                Value::Object(params),
+            ))
+        }
+        TagsSubcommand::Delete(args) => {
+            require_yes(args.yes, "删除 tag")?;
+            Ok(PlannedCommand::tool_call(
+                "delete_tag",
+                json!({
+                    "owner": args.target.owner,
+                    "repo": args.target.repo,
+                    "tag_name": args.tag_name
+                }),
+            ))
+        }
     }
 }
 
