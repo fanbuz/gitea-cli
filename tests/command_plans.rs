@@ -357,6 +357,56 @@ fn commits_get_maps_to_get_commit() {
 }
 
 #[test]
+fn pulls_create_maps_to_pull_request_write_create() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "pulls",
+        "create",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--head",
+        "feature/pr-write",
+        "--base",
+        "main",
+        "--title",
+        "Add write commands",
+        "--body",
+        "details",
+        "--label-id",
+        "3",
+        "--label-id",
+        "5",
+        "--draft",
+        "--deadline",
+        "2026-04-30T12:00:00Z",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "pull_request_write",
+            serde_json::json!({
+                "method": "create",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "head": "feature/pr-write",
+                "base": "main",
+                "title": "Add write commands",
+                "body": "details",
+                "labels": [3, 5],
+                "draft": true,
+                "deadline": "2026-04-30T12:00:00Z"
+            })
+        )
+    );
+}
+
+#[test]
 fn top_level_help_includes_command_descriptions() {
     let help = render_help(Cli::command());
 

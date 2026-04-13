@@ -290,6 +290,8 @@ pub enum PullsSubcommand {
     Get(PullTargetArgs),
     /// 读取单个 pull request 的 diff
     Diff(PullDiffArgs),
+    /// 创建 pull request
+    Create(PullCreateArgs),
 }
 
 #[derive(Debug, Clone, Args)]
@@ -882,6 +884,33 @@ pub struct PullDiffArgs {
     /// 是否包含二进制文件变更
     #[arg(long)]
     pub binary: bool,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct PullCreateArgs {
+    #[command(flatten)]
+    pub target: RepoTargetArgs,
+    /// 源分支名
+    #[arg(long)]
+    pub head: String,
+    /// 目标分支名
+    #[arg(long)]
+    pub base: String,
+    /// Pull request 标题
+    #[arg(long)]
+    pub title: String,
+    /// Pull request 正文
+    #[arg(long)]
+    pub body: Option<String>,
+    /// Label ID，可重复传入
+    #[arg(long = "label-id")]
+    pub label_ids: Vec<u64>,
+    /// 是否创建为 draft
+    #[arg(long)]
+    pub draft: bool,
+    /// 截止时间，使用 ISO 8601
+    #[arg(long)]
+    pub deadline: Option<String>,
 }
 
 #[derive(Debug, Clone, Args)]
@@ -1542,6 +1571,25 @@ fn plan_pulls(command: &PullsCommand) -> Result<PlannedCommand> {
             }
             Ok(PlannedCommand::tool_call(
                 "list_pull_requests",
+                Value::Object(params),
+            ))
+        }
+        PullsSubcommand::Create(args) => {
+            let mut params = Map::new();
+            params.insert("method".to_string(), json!("create"));
+            params.insert("owner".to_string(), json!(args.target.owner));
+            params.insert("repo".to_string(), json!(args.target.repo));
+            params.insert("head".to_string(), json!(args.head));
+            params.insert("base".to_string(), json!(args.base));
+            params.insert("title".to_string(), json!(args.title));
+            insert_optional_string(&mut params, "body", args.body.as_deref());
+            insert_optional_u64_list(&mut params, "labels", &args.label_ids);
+            insert_optional_string(&mut params, "deadline", args.deadline.as_deref());
+            if args.draft {
+                params.insert("draft".to_string(), json!(true));
+            }
+            Ok(PlannedCommand::tool_call(
+                "pull_request_write",
                 Value::Object(params),
             ))
         }
