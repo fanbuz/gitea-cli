@@ -49,6 +49,14 @@ fn issue_get_maps_to_issue_read() {
 }
 
 #[test]
+fn root_help_includes_fields_flag() {
+    let help = render_help(Cli::command());
+
+    assert!(help.contains("--fields"));
+    assert!(help.contains("仅在 JSON 输出中保留指定字段"));
+}
+
+#[test]
 fn actions_log_preview_maps_to_actions_run_read() {
     let cli = Cli::try_parse_from([
         "gitea-cli",

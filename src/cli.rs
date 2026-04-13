@@ -36,6 +36,13 @@ impl PlannedCommand {
 pub struct Cli {
     #[arg(long, global = true, help = "输出紧凑 JSON")]
     pub json: bool,
+    #[arg(
+        long,
+        global = true,
+        value_delimiter = ',',
+        help = "仅在 JSON 输出中保留指定字段，支持逗号分隔和点号路径"
+    )]
+    pub fields: Vec<String>,
     #[command(subcommand)]
     pub command: Command,
 }
