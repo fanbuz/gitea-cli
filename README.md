@@ -292,6 +292,15 @@ gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_
 - `gitea-cli --json pulls list --owner YOUR_ORG --repo YOUR_REPO --state open`
   列出某个仓库的 Pull Request，适合做待合并队列和状态排查。
 
+- `gitea-cli --json pulls create --owner YOUR_ORG --repo YOUR_REPO --head feature-branch --base main --title "Add feature"`
+  创建一个 Pull Request，可附带正文、label IDs、draft 标记和截止时间。
+
+- `gitea-cli --json pulls update --owner YOUR_ORG --repo YOUR_REPO --index 12 --title "New title"`
+  更新已有 Pull Request 的主体信息，可修改标题、正文、状态、目标分支、assignee、labels、milestone、截止时间、draft 状态和 maintainer 编辑权限。
+
+- `gitea-cli --json pulls merge --owner YOUR_ORG --repo YOUR_REPO --index 12 --merge-style squash`
+  合并一个 Pull Request，可控制 merge style、删除分支、强制合并、检查通过后自动合并和预期 head commit。
+
 - `gitea-cli --json pulls get --owner YOUR_ORG --repo YOUR_REPO --index 12`
   读取单个 Pull Request 的详情，包括标题、状态、分支信息等。
 
@@ -356,11 +365,11 @@ gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_
 - [x] Issue 读取与写操作
   已提供 `issues list/get/comments/search/create/update/comment-add/comment-edit/labels/labels-add/label-remove/labels-replace/labels-clear`。
 
-- [x] Pull Request 只读操作
-  已提供 `pulls list`、`pulls get`、`pulls diff`。
+- [x] Pull Request 主体读写操作
+  已提供 `pulls list/create/update/merge/get/diff`。
 
-- [ ] Pull Request 审查与写操作
-  暂未单独封装创建 PR、增删 reviewer、review、dismiss、merge 等高层命令。
+- [ ] Pull Request 评审与 reviewer 管理
+  暂未单独封装增删 reviewer、review、dismiss 等高层命令，详见后续 issue 规划。
 
 - [x] Actions 只读排查路径
   已提供 `actions workflows`、`actions runs`、`actions jobs`、`actions log-preview`。

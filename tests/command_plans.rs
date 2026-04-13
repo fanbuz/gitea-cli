@@ -571,6 +571,28 @@ fn issues_list_help_includes_option_descriptions() {
 }
 
 #[test]
+fn pulls_help_includes_write_subcommands() {
+    let mut root = Cli::command();
+    let pulls_help = render_help(find_subcommand(&mut root, "pulls").clone());
+
+    assert!(help_has_command_description(
+        &pulls_help,
+        "create",
+        "创建 pull request"
+    ));
+    assert!(help_has_command_description(
+        &pulls_help,
+        "update",
+        "更新 pull request"
+    ));
+    assert!(help_has_command_description(
+        &pulls_help,
+        "merge",
+        "合并 pull request"
+    ));
+}
+
+#[test]
 fn issues_create_maps_to_issue_write_create() {
     let cli = Cli::try_parse_from([
         "gitea-cli",
