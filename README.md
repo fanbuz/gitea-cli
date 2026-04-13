@@ -150,6 +150,12 @@ gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_
 - `gitea-cli --json repos branches --owner YOUR_ORG --repo YOUR_REPO`
   列出某个仓库的分支，用于排查默认分支、发布分支或临时分支状态。
 
+- `gitea-cli --json repos branch-create --owner YOUR_ORG --repo YOUR_REPO --branch feature/new-command --from main`
+  基于指定已有分支创建新分支，适合在自动化脚本或 agent 协作流里快速补齐分支准备动作。
+
+- `gitea-cli --json repos branch-delete --owner YOUR_ORG --repo YOUR_REPO --branch feature/new-command --yes`
+  删除指定仓库分支，属于危险操作，必须显式传 `--yes`。
+
 - `gitea-cli --json repos tree --owner YOUR_ORG --repo YOUR_REPO --ref main --recursive`
   读取某个仓库在指定 `ref` 下的文件树，可选择递归展开。
 
@@ -344,8 +350,8 @@ gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_
 - [ ] 仓库写操作与高级仓库管理
   暂未单独封装 `create repo`、`fork repo`、`search repos` 等高层命令。
 
-- [ ] 分支写操作
-  暂未单独封装 `create branch`、`delete branch`。
+- [x] 分支写操作
+  已提供 `repos branch-create`、`repos branch-delete`。
 
 - [x] Release / Tag / Commit
   已提供 `releases list/latest/get`、`tags list/get`、`commits list/get`。

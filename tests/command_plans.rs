@@ -113,6 +113,90 @@ fn repos_list_with_owner_uses_org_repos() {
 }
 
 #[test]
+fn repos_branch_create_maps_to_create_branch() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "repos",
+        "branch-create",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--branch",
+        "feature/new-command",
+        "--from",
+        "main",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "create_branch",
+            serde_json::json!({
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "branch": "feature/new-command",
+                "old_branch": "main"
+            })
+        )
+    );
+}
+
+#[test]
+fn repos_branch_delete_requires_yes() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "repos",
+        "branch-delete",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--branch",
+        "feature/new-command",
+    ])
+    .unwrap();
+
+    let error = plan_command(&cli).unwrap_err();
+
+    assert!(error.to_string().contains("--yes"));
+}
+
+#[test]
+fn repos_branch_delete_maps_when_confirmed() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "repos",
+        "branch-delete",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--branch",
+        "feature/new-command",
+        "--yes",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "delete_branch",
+            serde_json::json!({
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "branch": "feature/new-command"
+            })
+        )
+    );
+}
+
+#[test]
 fn resolve_issue_url_extracts_coordinates() {
     let cli = Cli::try_parse_from([
         "gitea-cli",
@@ -1647,4 +1731,13 @@ fn milestones_help_includes_subcommand_descriptions() {
     assert!(milestones_help.contains("get     读取单个 milestone"));
     assert!(milestones_help.contains("create  创建 milestone"));
     assert!(milestones_help.contains("delete  删除 milestone"));
+}
+
+#[test]
+fn repos_help_includes_branch_write_subcommand_descriptions() {
+    let mut root = Cli::command();
+    let repos_help = render_help(find_subcommand(&mut root, "repos").clone());
+
+    assert!(repos_help.contains("branch-create  创建仓库分支"));
+    assert!(repos_help.contains("branch-delete  删除仓库分支"));
 }
