@@ -6,7 +6,9 @@ __pycache__/
 dist/
 build/
 *.egg-info/
+.cargo/
 .cargo-home/
 .home/
+docs/superpowers/
 .worktrees/
 target/
