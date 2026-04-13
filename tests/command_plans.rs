@@ -365,6 +365,165 @@ fn commits_get_maps_to_get_commit() {
 }
 
 #[test]
+fn pulls_create_maps_to_pull_request_write_create() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "pulls",
+        "create",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--head",
+        "feature/pr-write",
+        "--base",
+        "main",
+        "--title",
+        "Add write commands",
+        "--body",
+        "details",
+        "--label-id",
+        "3",
+        "--label-id",
+        "5",
+        "--draft",
+        "--deadline",
+        "2026-04-30T12:00:00Z",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "pull_request_write",
+            serde_json::json!({
+                "method": "create",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "head": "feature/pr-write",
+                "base": "main",
+                "title": "Add write commands",
+                "body": "details",
+                "labels": [3, 5],
+                "draft": true,
+                "deadline": "2026-04-30T12:00:00Z"
+            })
+        )
+    );
+}
+
+#[test]
+fn pulls_update_maps_to_pull_request_write_update() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "pulls",
+        "update",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--index",
+        "12",
+        "--title",
+        "Updated title",
+        "--state",
+        "closed",
+        "--base",
+        "release/0.0.7",
+        "--assignee",
+        "fanbuz",
+        "--label-id",
+        "4",
+        "--milestone",
+        "7",
+        "--deadline",
+        "2026-04-30T12:00:00Z",
+        "--remove-deadline",
+        "--allow-maintainer-edit",
+        "false",
+        "--draft",
+        "true",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "pull_request_write",
+            serde_json::json!({
+                "method": "update",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "index": 12,
+                "title": "Updated title",
+                "state": "closed",
+                "base": "release/0.0.7",
+                "assignee": "fanbuz",
+                "labels": [4],
+                "milestone": 7,
+                "deadline": "2026-04-30T12:00:00Z",
+                "remove_deadline": true,
+                "allow_maintainer_edit": false,
+                "draft": true
+            })
+        )
+    );
+}
+
+#[test]
+fn pulls_merge_maps_to_pull_request_write_merge() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "pulls",
+        "merge",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--index",
+        "12",
+        "--merge-style",
+        "squash",
+        "--title",
+        "Merge PR",
+        "--message",
+        "merge details",
+        "--delete-branch",
+        "--force-merge",
+        "--merge-when-checks-succeed",
+        "--head-commit-id",
+        "abcdef123456",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "pull_request_write",
+            serde_json::json!({
+                "method": "merge",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "index": 12,
+                "merge_style": "squash",
+                "title": "Merge PR",
+                "message": "merge details",
+                "delete_branch": true,
+                "force_merge": true,
+                "merge_when_checks_succeed": true,
+                "head_commit_id": "abcdef123456"
+            })
+        )
+    );
+}
+
+#[test]
 fn top_level_help_includes_command_descriptions() {
     let help = render_help(Cli::command());
 
@@ -417,6 +576,28 @@ fn issues_list_help_includes_option_descriptions() {
     assert!(issues_list_help.contains("Issue 状态过滤，默认 open"));
     assert!(issues_list_help.contains("--page-size <PAGE_SIZE>"));
     assert!(issues_list_help.contains("每页返回条数"));
+}
+
+#[test]
+fn pulls_help_includes_write_subcommands() {
+    let mut root = Cli::command();
+    let pulls_help = render_help(find_subcommand(&mut root, "pulls").clone());
+
+    assert!(help_has_command_description(
+        &pulls_help,
+        "create",
+        "创建 pull request"
+    ));
+    assert!(help_has_command_description(
+        &pulls_help,
+        "update",
+        "更新 pull request"
+    ));
+    assert!(help_has_command_description(
+        &pulls_help,
+        "merge",
+        "合并 pull request"
+    ));
 }
 
 #[test]

@@ -293,6 +293,12 @@ pub enum MilestonesSubcommand {
 pub enum PullsSubcommand {
     /// 列出仓库 pull request 列表
     List(PullsListArgs),
+    /// 创建 pull request
+    Create(PullCreateArgs),
+    /// 更新 pull request
+    Update(PullUpdateArgs),
+    /// 合并 pull request
+    Merge(PullMergeArgs),
     /// 读取单个 pull request 详情
     Get(PullTargetArgs),
     /// 读取单个 pull request 的 diff
@@ -889,6 +895,120 @@ pub struct PullDiffArgs {
     /// 是否包含二进制文件变更
     #[arg(long)]
     pub binary: bool,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct PullCreateArgs {
+    #[command(flatten)]
+    pub target: RepoTargetArgs,
+    /// 源分支名
+    #[arg(long)]
+    pub head: String,
+    /// 目标分支名
+    #[arg(long)]
+    pub base: String,
+    /// Pull request 标题
+    #[arg(long)]
+    pub title: String,
+    /// Pull request 正文
+    #[arg(long)]
+    pub body: Option<String>,
+    /// Label ID，可重复传入
+    #[arg(long = "label-id")]
+    pub label_ids: Vec<u64>,
+    /// 是否创建为 draft
+    #[arg(long)]
+    pub draft: bool,
+    /// 截止时间，使用 ISO 8601
+    #[arg(long)]
+    pub deadline: Option<String>,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct PullUpdateArgs {
+    #[command(flatten)]
+    pub target: PullTargetArgs,
+    /// Pull request 标题
+    #[arg(long)]
+    pub title: Option<String>,
+    /// Pull request 正文
+    #[arg(long)]
+    pub body: Option<String>,
+    /// Pull request 状态
+    #[arg(long)]
+    pub state: Option<String>,
+    /// 目标分支名
+    #[arg(long)]
+    pub base: Option<String>,
+    /// 指派用户，可重复传入
+    #[arg(long = "assignee")]
+    pub assignees: Vec<String>,
+    /// Label ID，可重复传入
+    #[arg(long = "label-id")]
+    pub label_ids: Vec<u64>,
+    /// Milestone 编号
+    #[arg(long)]
+    pub milestone: Option<u64>,
+    /// 截止时间，使用 ISO 8601
+    #[arg(long)]
+    pub deadline: Option<String>,
+    /// 清空截止时间
+    #[arg(long)]
+    pub remove_deadline: bool,
+    /// 是否允许 maintainer 修改
+    #[arg(long = "allow-maintainer-edit")]
+    pub allow_maintainer_edit: Option<bool>,
+    /// 是否设置为 draft
+    #[arg(long)]
+    pub draft: Option<bool>,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct PullMergeArgs {
+    #[command(flatten)]
+    pub target: PullTargetArgs,
+    /// 合并策略
+    #[arg(long = "merge-style")]
+    pub merge_style: Option<PullMergeStyle>,
+    /// 合并标题
+    #[arg(long)]
+    pub title: Option<String>,
+    /// 合并消息
+    #[arg(long)]
+    pub message: Option<String>,
+    /// 合并后删除分支
+    #[arg(long)]
+    pub delete_branch: bool,
+    /// 强制合并
+    #[arg(long)]
+    pub force_merge: bool,
+    /// 当检查通过后自动合并
+    #[arg(long = "merge-when-checks-succeed")]
+    pub merge_when_checks_succeed: bool,
+    /// 期望的 head commit SHA
+    #[arg(long = "head-commit-id")]
+    pub head_commit_id: Option<String>,
+}
+
+#[derive(Debug, Clone, clap::ValueEnum)]
+pub enum PullMergeStyle {
+    Merge,
+    Rebase,
+    RebaseMerge,
+    Squash,
+    FastForwardOnly,
+}
+
+impl PullMergeStyle {
+    fn as_api_value(&self) -> &'static str {
+        match self {
+            Self::Merge => "merge",
+            Self::Rebase => "rebase",
+            Self::RebaseMerge => "rebase-merge",
+            Self::Squash => "squash",
+            Self::FastForwardOnly => "fast-forward-only",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Args)]
@@ -1549,6 +1669,90 @@ fn plan_pulls(command: &PullsCommand) -> Result<PlannedCommand> {
             }
             Ok(PlannedCommand::tool_call(
                 "list_pull_requests",
+                Value::Object(params),
+            ))
+        }
+        PullsSubcommand::Create(args) => {
+            let mut params = Map::new();
+            params.insert("method".to_string(), json!("create"));
+            params.insert("owner".to_string(), json!(args.target.owner));
+            params.insert("repo".to_string(), json!(args.target.repo));
+            params.insert("head".to_string(), json!(args.head));
+            params.insert("base".to_string(), json!(args.base));
+            params.insert("title".to_string(), json!(args.title));
+            insert_optional_string(&mut params, "body", args.body.as_deref());
+            insert_optional_u64_list(&mut params, "labels", &args.label_ids);
+            insert_optional_string(&mut params, "deadline", args.deadline.as_deref());
+            if args.draft {
+                params.insert("draft".to_string(), json!(true));
+            }
+            Ok(PlannedCommand::tool_call(
+                "pull_request_write",
+                Value::Object(params),
+            ))
+        }
+        PullsSubcommand::Update(args) => {
+            let mut params = Map::new();
+            params.insert("method".to_string(), json!("update"));
+            params.insert("owner".to_string(), json!(args.target.owner));
+            params.insert("repo".to_string(), json!(args.target.repo));
+            params.insert("index".to_string(), json!(args.target.index));
+            insert_optional_string(&mut params, "title", args.title.as_deref());
+            insert_optional_string(&mut params, "body", args.body.as_deref());
+            insert_optional_string(&mut params, "state", args.state.as_deref());
+            insert_optional_string(&mut params, "base", args.base.as_deref());
+            if args.assignees.len() == 1 {
+                params.insert("assignee".to_string(), json!(args.assignees[0]));
+            } else {
+                insert_optional_string_list(&mut params, "assignees", &args.assignees);
+            }
+            insert_optional_u64_list(&mut params, "labels", &args.label_ids);
+            insert_optional_u64(&mut params, "milestone", args.milestone);
+            insert_optional_string(&mut params, "deadline", args.deadline.as_deref());
+            if args.remove_deadline {
+                params.insert("remove_deadline".to_string(), json!(true));
+            }
+            insert_optional_bool(
+                &mut params,
+                "allow_maintainer_edit",
+                args.allow_maintainer_edit,
+            );
+            insert_optional_bool(&mut params, "draft", args.draft);
+            Ok(PlannedCommand::tool_call(
+                "pull_request_write",
+                Value::Object(params),
+            ))
+        }
+        PullsSubcommand::Merge(args) => {
+            let mut params = Map::new();
+            params.insert("method".to_string(), json!("merge"));
+            params.insert("owner".to_string(), json!(args.target.owner));
+            params.insert("repo".to_string(), json!(args.target.repo));
+            params.insert("index".to_string(), json!(args.target.index));
+            if let Some(merge_style) = &args.merge_style {
+                params.insert(
+                    "merge_style".to_string(),
+                    json!(merge_style.as_api_value()),
+                );
+            }
+            insert_optional_string(&mut params, "title", args.title.as_deref());
+            insert_optional_string(&mut params, "message", args.message.as_deref());
+            insert_optional_string(
+                &mut params,
+                "head_commit_id",
+                args.head_commit_id.as_deref(),
+            );
+            if args.delete_branch {
+                params.insert("delete_branch".to_string(), json!(true));
+            }
+            if args.force_merge {
+                params.insert("force_merge".to_string(), json!(true));
+            }
+            if args.merge_when_checks_succeed {
+                params.insert("merge_when_checks_succeed".to_string(), json!(true));
+            }
+            Ok(PlannedCommand::tool_call(
+                "pull_request_write",
                 Value::Object(params),
             ))
         }
