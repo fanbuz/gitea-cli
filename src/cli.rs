@@ -76,7 +76,7 @@ pub enum Command {
     Milestones(MilestonesCommand),
     /// 查询 pull request 列表、详情和 diff
     Pulls(PullsCommand),
-    /// 查询 Actions workflow、run、job 与日志预览
+    /// 查询与控制 Actions workflow、run、job 和日志预览
     Actions(ActionsCommand),
     /// 从 Gitea URL 解析 owner、repo、issue 或 pull 坐标
     Resolve(ResolveCommand),
@@ -308,6 +308,12 @@ pub enum ActionsSubcommand {
     Jobs(ActionsJobsArgs),
     /// 预览某个 job 的日志尾部
     LogPreview(ActionsLogPreviewArgs),
+    /// 触发 workflow 运行
+    Dispatch(ActionsDispatchArgs),
+    /// 取消指定 run
+    Cancel(ActionsRunTargetArgs),
+    /// 重跑指定 run
+    Rerun(ActionsRunTargetArgs),
 }
 
 #[derive(Debug, Clone, Args)]
@@ -947,6 +953,30 @@ pub struct ActionsLogPreviewArgs {
     /// 返回日志的最大字节数
     #[arg(long = "max-bytes")]
     pub max_bytes: Option<u64>,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct ActionsDispatchArgs {
+    #[command(flatten)]
+    pub target: RepoTargetArgs,
+    /// Workflow ID 或文件名
+    #[arg(long = "workflow-id")]
+    pub workflow_id: String,
+    /// 触发 workflow 的分支或 tag
+    #[arg(long = "ref")]
+    pub git_ref: String,
+    /// Workflow inputs，支持内联 JSON 或 @file
+    #[arg(long)]
+    pub inputs: Option<String>,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct ActionsRunTargetArgs {
+    #[command(flatten)]
+    pub target: RepoTargetArgs,
+    /// Workflow run ID
+    #[arg(long = "run-id")]
+    pub run_id: u64,
 }
 
 pub fn plan_command(cli: &Cli) -> Result<PlannedCommand> {
@@ -1630,6 +1660,39 @@ fn plan_actions(command: &ActionsCommand) -> Result<PlannedCommand> {
                 Value::Object(params),
             ))
         }
+        ActionsSubcommand::Dispatch(args) => {
+            let mut params = Map::new();
+            params.insert("method".to_string(), json!("dispatch_workflow"));
+            params.insert("owner".to_string(), json!(args.target.owner));
+            params.insert("repo".to_string(), json!(args.target.repo));
+            params.insert("workflow_id".to_string(), json!(args.workflow_id));
+            params.insert("ref".to_string(), json!(args.git_ref));
+            if let Some(inputs) = &args.inputs {
+                params.insert("inputs".to_string(), parse_json_object_input(inputs)?);
+            }
+            Ok(PlannedCommand::tool_call(
+                "actions_run_write",
+                Value::Object(params),
+            ))
+        }
+        ActionsSubcommand::Cancel(args) => Ok(PlannedCommand::tool_call(
+            "actions_run_write",
+            json!({
+                "method": "cancel_run",
+                "owner": args.target.owner,
+                "repo": args.target.repo,
+                "run_id": args.run_id
+            }),
+        )),
+        ActionsSubcommand::Rerun(args) => Ok(PlannedCommand::tool_call(
+            "actions_run_write",
+            json!({
+                "method": "rerun_run",
+                "owner": args.target.owner,
+                "repo": args.target.repo,
+                "run_id": args.run_id
+            }),
+        )),
     }
 }
 
@@ -1698,6 +1761,14 @@ fn parse_json_input(raw: &str) -> Result<Value> {
     };
 
     serde_json::from_str(&source).with_context(|| format!("解析 JSON 参数失败: {source}"))
+}
+
+fn parse_json_object_input(raw: &str) -> Result<Value> {
+    let value = parse_json_input(raw)?;
+    match value {
+        Value::Object(_) => Ok(value),
+        _ => bail!("workflow inputs 必须是 JSON 对象"),
+    }
 }
 
 fn resolve_repo_url(url: &str) -> Result<Value> {

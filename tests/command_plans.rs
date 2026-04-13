@@ -1,5 +1,7 @@
 use clap::CommandFactory;
 use gitea_cli::cli::{Cli, PlannedCommand, plan_command};
+use std::fs;
+use tempfile::tempdir;
 
 fn render_help(mut command: clap::Command) -> String {
     let mut output = Vec::new();
@@ -77,6 +79,175 @@ fn actions_log_preview_maps_to_actions_run_read() {
                 "repo": "simba-ehr-frontend",
                 "job_id": 456,
                 "tail_lines": 20
+            })
+        )
+    );
+}
+
+#[test]
+fn actions_dispatch_maps_to_actions_run_write_dispatch_workflow() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "actions",
+        "dispatch",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--workflow-id",
+        "release.yml",
+        "--ref",
+        "main",
+        "--inputs",
+        "{\"env\":\"prod\"}",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "actions_run_write",
+            serde_json::json!({
+                "method": "dispatch_workflow",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "workflow_id": "release.yml",
+                "ref": "main",
+                "inputs": {
+                    "env": "prod"
+                }
+            })
+        )
+    );
+}
+
+#[test]
+fn actions_dispatch_accepts_inputs_from_json_file() {
+    let dir = tempdir().unwrap();
+    let inputs_path = dir.path().join("inputs.json");
+    fs::write(&inputs_path, "{\"env\":\"prod\",\"dry_run\":true}").unwrap();
+
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "actions",
+        "dispatch",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--workflow-id",
+        "release.yml",
+        "--ref",
+        "main",
+        "--inputs",
+        &format!("@{}", inputs_path.display()),
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "actions_run_write",
+            serde_json::json!({
+                "method": "dispatch_workflow",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "workflow_id": "release.yml",
+                "ref": "main",
+                "inputs": {
+                    "env": "prod",
+                    "dry_run": true
+                }
+            })
+        )
+    );
+}
+
+#[test]
+fn actions_dispatch_rejects_non_object_inputs() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "actions",
+        "dispatch",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--workflow-id",
+        "release.yml",
+        "--ref",
+        "main",
+        "--inputs",
+        "[1,2,3]",
+    ])
+    .unwrap();
+
+    let error = plan_command(&cli).unwrap_err();
+
+    assert!(error.to_string().contains("JSON 对象"));
+}
+
+#[test]
+fn actions_cancel_maps_to_actions_run_write_cancel_run() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "actions",
+        "cancel",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--run-id",
+        "456",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "actions_run_write",
+            serde_json::json!({
+                "method": "cancel_run",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "run_id": 456
+            })
+        )
+    );
+}
+
+#[test]
+fn actions_rerun_maps_to_actions_run_write_rerun_run() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "actions",
+        "rerun",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--run-id",
+        "456",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "actions_run_write",
+            serde_json::json!({
+                "method": "rerun_run",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "run_id": 456
             })
         )
     );
@@ -1647,4 +1818,26 @@ fn milestones_help_includes_subcommand_descriptions() {
     assert!(milestones_help.contains("get     读取单个 milestone"));
     assert!(milestones_help.contains("create  创建 milestone"));
     assert!(milestones_help.contains("delete  删除 milestone"));
+}
+
+#[test]
+fn actions_help_includes_write_subcommand_descriptions() {
+    let mut root = Cli::command();
+    let actions_help = render_help(find_subcommand(&mut root, "actions").clone());
+
+    assert!(help_has_command_description(
+        &actions_help,
+        "dispatch",
+        "触发 workflow 运行"
+    ));
+    assert!(help_has_command_description(
+        &actions_help,
+        "cancel",
+        "取消指定 run"
+    ));
+    assert!(help_has_command_description(
+        &actions_help,
+        "rerun",
+        "重跑指定 run"
+    ));
 }
