@@ -286,12 +286,14 @@ pub enum MilestonesSubcommand {
 pub enum PullsSubcommand {
     /// 列出仓库 pull request 列表
     List(PullsListArgs),
+    /// 创建 pull request
+    Create(PullCreateArgs),
+    /// 更新 pull request
+    Update(PullUpdateArgs),
     /// 读取单个 pull request 详情
     Get(PullTargetArgs),
     /// 读取单个 pull request 的 diff
     Diff(PullDiffArgs),
-    /// 创建 pull request
-    Create(PullCreateArgs),
 }
 
 #[derive(Debug, Clone, Args)]
@@ -911,6 +913,45 @@ pub struct PullCreateArgs {
     /// 截止时间，使用 ISO 8601
     #[arg(long)]
     pub deadline: Option<String>,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct PullUpdateArgs {
+    #[command(flatten)]
+    pub target: PullTargetArgs,
+    /// Pull request 标题
+    #[arg(long)]
+    pub title: Option<String>,
+    /// Pull request 正文
+    #[arg(long)]
+    pub body: Option<String>,
+    /// Pull request 状态
+    #[arg(long)]
+    pub state: Option<String>,
+    /// 目标分支名
+    #[arg(long)]
+    pub base: Option<String>,
+    /// 指派用户，可重复传入
+    #[arg(long = "assignee")]
+    pub assignees: Vec<String>,
+    /// Label ID，可重复传入
+    #[arg(long = "label-id")]
+    pub label_ids: Vec<u64>,
+    /// Milestone 编号
+    #[arg(long)]
+    pub milestone: Option<u64>,
+    /// 截止时间，使用 ISO 8601
+    #[arg(long)]
+    pub deadline: Option<String>,
+    /// 清空截止时间
+    #[arg(long)]
+    pub remove_deadline: bool,
+    /// 是否允许 maintainer 修改
+    #[arg(long = "allow-maintainer-edit")]
+    pub allow_maintainer_edit: Option<bool>,
+    /// 是否设置为 draft
+    #[arg(long)]
+    pub draft: Option<bool>,
 }
 
 #[derive(Debug, Clone, Args)]
@@ -1588,6 +1629,38 @@ fn plan_pulls(command: &PullsCommand) -> Result<PlannedCommand> {
             if args.draft {
                 params.insert("draft".to_string(), json!(true));
             }
+            Ok(PlannedCommand::tool_call(
+                "pull_request_write",
+                Value::Object(params),
+            ))
+        }
+        PullsSubcommand::Update(args) => {
+            let mut params = Map::new();
+            params.insert("method".to_string(), json!("update"));
+            params.insert("owner".to_string(), json!(args.target.owner));
+            params.insert("repo".to_string(), json!(args.target.repo));
+            params.insert("index".to_string(), json!(args.target.index));
+            insert_optional_string(&mut params, "title", args.title.as_deref());
+            insert_optional_string(&mut params, "body", args.body.as_deref());
+            insert_optional_string(&mut params, "state", args.state.as_deref());
+            insert_optional_string(&mut params, "base", args.base.as_deref());
+            if args.assignees.len() == 1 {
+                params.insert("assignee".to_string(), json!(args.assignees[0]));
+            } else {
+                insert_optional_string_list(&mut params, "assignees", &args.assignees);
+            }
+            insert_optional_u64_list(&mut params, "labels", &args.label_ids);
+            insert_optional_u64(&mut params, "milestone", args.milestone);
+            insert_optional_string(&mut params, "deadline", args.deadline.as_deref());
+            if args.remove_deadline {
+                params.insert("remove_deadline".to_string(), json!(true));
+            }
+            insert_optional_bool(
+                &mut params,
+                "allow_maintainer_edit",
+                args.allow_maintainer_edit,
+            );
+            insert_optional_bool(&mut params, "draft", args.draft);
             Ok(PlannedCommand::tool_call(
                 "pull_request_write",
                 Value::Object(params),

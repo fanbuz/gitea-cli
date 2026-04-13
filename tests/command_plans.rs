@@ -407,6 +407,66 @@ fn pulls_create_maps_to_pull_request_write_create() {
 }
 
 #[test]
+fn pulls_update_maps_to_pull_request_write_update() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "pulls",
+        "update",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--index",
+        "12",
+        "--title",
+        "Updated title",
+        "--state",
+        "closed",
+        "--base",
+        "release/0.0.7",
+        "--assignee",
+        "fanbuz",
+        "--label-id",
+        "4",
+        "--milestone",
+        "7",
+        "--deadline",
+        "2026-04-30T12:00:00Z",
+        "--remove-deadline",
+        "--allow-maintainer-edit",
+        "false",
+        "--draft",
+        "true",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "pull_request_write",
+            serde_json::json!({
+                "method": "update",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "index": 12,
+                "title": "Updated title",
+                "state": "closed",
+                "base": "release/0.0.7",
+                "assignee": "fanbuz",
+                "labels": [4],
+                "milestone": 7,
+                "deadline": "2026-04-30T12:00:00Z",
+                "remove_deadline": true,
+                "allow_maintainer_edit": false,
+                "draft": true
+            })
+        )
+    );
+}
+
+#[test]
 fn top_level_help_includes_command_descriptions() {
     let help = render_help(Cli::command());
 
