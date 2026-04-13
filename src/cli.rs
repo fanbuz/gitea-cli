@@ -127,6 +127,10 @@ pub enum ReposSubcommand {
     List(RepoListArgs),
     /// 列出指定仓库的分支
     Branches(RepoTargetWithPageArgs),
+    /// 创建仓库分支
+    BranchCreate(RepoBranchCreateArgs),
+    /// 删除仓库分支
+    BranchDelete(RepoBranchDeleteArgs),
     /// 读取指定仓库在某个 ref 下的文件树
     Tree(RepoTreeArgs),
 }
@@ -425,6 +429,30 @@ pub struct RepoTreeArgs {
     /// 每页返回条数
     #[arg(long = "page-size", default_value_t = 100)]
     pub page_size: u32,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct RepoBranchCreateArgs {
+    #[command(flatten)]
+    pub target: RepoTargetArgs,
+    /// 新分支名
+    #[arg(long)]
+    pub branch: String,
+    /// 作为起点的已有分支名
+    #[arg(long = "from")]
+    pub old_branch: String,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct RepoBranchDeleteArgs {
+    #[command(flatten)]
+    pub target: RepoTargetArgs,
+    /// 要删除的分支名
+    #[arg(long)]
+    pub branch: String,
+    /// 确认执行危险操作
+    #[arg(long)]
+    pub yes: bool,
 }
 
 #[derive(Debug, Clone, Args)]
@@ -1167,6 +1195,26 @@ fn plan_repos(command: &ReposCommand) -> Result<PlannedCommand> {
                 "perPage": args.page.page_size
             }),
         )),
+        ReposSubcommand::BranchCreate(args) => Ok(PlannedCommand::tool_call(
+            "create_branch",
+            json!({
+                "owner": args.target.owner,
+                "repo": args.target.repo,
+                "branch": args.branch,
+                "old_branch": args.old_branch
+            }),
+        )),
+        ReposSubcommand::BranchDelete(args) => {
+            require_yes(args.yes, "删除仓库分支")?;
+            Ok(PlannedCommand::tool_call(
+                "delete_branch",
+                json!({
+                    "owner": args.target.owner,
+                    "repo": args.target.repo,
+                    "branch": args.branch
+                }),
+            ))
+        }
         ReposSubcommand::Tree(args) => Ok(PlannedCommand::tool_call(
             "get_repository_tree",
             json!({
