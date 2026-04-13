@@ -1,5 +1,7 @@
 use clap::CommandFactory;
 use gitea_cli::cli::{Cli, PlannedCommand, plan_command};
+use std::fs;
+use tempfile::tempdir;
 
 fn render_help(mut command: clap::Command) -> String {
     let mut output = Vec::new();
@@ -49,6 +51,14 @@ fn issue_get_maps_to_issue_read() {
 }
 
 #[test]
+fn root_help_includes_fields_flag() {
+    let help = render_help(Cli::command());
+
+    assert!(help.contains("--fields"));
+    assert!(help.contains("仅在 JSON 输出中保留指定字段"));
+}
+
+#[test]
 fn actions_log_preview_maps_to_actions_run_read() {
     let cli = Cli::try_parse_from([
         "gitea-cli",
@@ -83,6 +93,175 @@ fn actions_log_preview_maps_to_actions_run_read() {
 }
 
 #[test]
+fn actions_dispatch_maps_to_actions_run_write_dispatch_workflow() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "actions",
+        "dispatch",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--workflow-id",
+        "release.yml",
+        "--ref",
+        "main",
+        "--inputs",
+        "{\"env\":\"prod\"}",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "actions_run_write",
+            serde_json::json!({
+                "method": "dispatch_workflow",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "workflow_id": "release.yml",
+                "ref": "main",
+                "inputs": {
+                    "env": "prod"
+                }
+            })
+        )
+    );
+}
+
+#[test]
+fn actions_dispatch_accepts_inputs_from_json_file() {
+    let dir = tempdir().unwrap();
+    let inputs_path = dir.path().join("inputs.json");
+    fs::write(&inputs_path, "{\"env\":\"prod\",\"dry_run\":true}").unwrap();
+
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "actions",
+        "dispatch",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--workflow-id",
+        "release.yml",
+        "--ref",
+        "main",
+        "--inputs",
+        &format!("@{}", inputs_path.display()),
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "actions_run_write",
+            serde_json::json!({
+                "method": "dispatch_workflow",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "workflow_id": "release.yml",
+                "ref": "main",
+                "inputs": {
+                    "env": "prod",
+                    "dry_run": true
+                }
+            })
+        )
+    );
+}
+
+#[test]
+fn actions_dispatch_rejects_non_object_inputs() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "actions",
+        "dispatch",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--workflow-id",
+        "release.yml",
+        "--ref",
+        "main",
+        "--inputs",
+        "[1,2,3]",
+    ])
+    .unwrap();
+
+    let error = plan_command(&cli).unwrap_err();
+
+    assert!(error.to_string().contains("JSON 对象"));
+}
+
+#[test]
+fn actions_cancel_maps_to_actions_run_write_cancel_run() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "actions",
+        "cancel",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--run-id",
+        "456",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "actions_run_write",
+            serde_json::json!({
+                "method": "cancel_run",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "run_id": 456
+            })
+        )
+    );
+}
+
+#[test]
+fn actions_rerun_maps_to_actions_run_write_rerun_run() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "actions",
+        "rerun",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--run-id",
+        "456",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "actions_run_write",
+            serde_json::json!({
+                "method": "rerun_run",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "run_id": 456
+            })
+        )
+    );
+}
+
+#[test]
 fn repos_list_with_owner_uses_org_repos() {
     let cli = Cli::try_parse_from([
         "gitea-cli",
@@ -107,6 +286,90 @@ fn repos_list_with_owner_uses_org_repos() {
                 "org": "XINTUKJ",
                 "page": 2,
                 "pageSize": 50
+            })
+        )
+    );
+}
+
+#[test]
+fn repos_branch_create_maps_to_create_branch() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "repos",
+        "branch-create",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--branch",
+        "feature/new-command",
+        "--from",
+        "main",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "create_branch",
+            serde_json::json!({
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "branch": "feature/new-command",
+                "old_branch": "main"
+            })
+        )
+    );
+}
+
+#[test]
+fn repos_branch_delete_requires_yes() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "repos",
+        "branch-delete",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--branch",
+        "feature/new-command",
+    ])
+    .unwrap();
+
+    let error = plan_command(&cli).unwrap_err();
+
+    assert!(error.to_string().contains("--yes"));
+}
+
+#[test]
+fn repos_branch_delete_maps_when_confirmed() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "repos",
+        "branch-delete",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--branch",
+        "feature/new-command",
+        "--yes",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "delete_branch",
+            serde_json::json!({
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "branch": "feature/new-command"
             })
         )
     );
@@ -538,6 +801,165 @@ fn commits_get_maps_to_get_commit() {
 }
 
 #[test]
+fn pulls_create_maps_to_pull_request_write_create() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "pulls",
+        "create",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--head",
+        "feature/pr-write",
+        "--base",
+        "main",
+        "--title",
+        "Add write commands",
+        "--body",
+        "details",
+        "--label-id",
+        "3",
+        "--label-id",
+        "5",
+        "--draft",
+        "--deadline",
+        "2026-04-30T12:00:00Z",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "pull_request_write",
+            serde_json::json!({
+                "method": "create",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "head": "feature/pr-write",
+                "base": "main",
+                "title": "Add write commands",
+                "body": "details",
+                "labels": [3, 5],
+                "draft": true,
+                "deadline": "2026-04-30T12:00:00Z"
+            })
+        )
+    );
+}
+
+#[test]
+fn pulls_update_maps_to_pull_request_write_update() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "pulls",
+        "update",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--index",
+        "12",
+        "--title",
+        "Updated title",
+        "--state",
+        "closed",
+        "--base",
+        "release/0.0.7",
+        "--assignee",
+        "fanbuz",
+        "--label-id",
+        "4",
+        "--milestone",
+        "7",
+        "--deadline",
+        "2026-04-30T12:00:00Z",
+        "--remove-deadline",
+        "--allow-maintainer-edit",
+        "false",
+        "--draft",
+        "true",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "pull_request_write",
+            serde_json::json!({
+                "method": "update",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "index": 12,
+                "title": "Updated title",
+                "state": "closed",
+                "base": "release/0.0.7",
+                "assignee": "fanbuz",
+                "labels": [4],
+                "milestone": 7,
+                "deadline": "2026-04-30T12:00:00Z",
+                "remove_deadline": true,
+                "allow_maintainer_edit": false,
+                "draft": true
+            })
+        )
+    );
+}
+
+#[test]
+fn pulls_merge_maps_to_pull_request_write_merge() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "pulls",
+        "merge",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--index",
+        "12",
+        "--merge-style",
+        "squash",
+        "--title",
+        "Merge PR",
+        "--message",
+        "merge details",
+        "--delete-branch",
+        "--force-merge",
+        "--merge-when-checks-succeed",
+        "--head-commit-id",
+        "abcdef123456",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "pull_request_write",
+            serde_json::json!({
+                "method": "merge",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "index": 12,
+                "merge_style": "squash",
+                "title": "Merge PR",
+                "message": "merge details",
+                "delete_branch": true,
+                "force_merge": true,
+                "merge_when_checks_succeed": true,
+                "head_commit_id": "abcdef123456"
+            })
+        )
+    );
+}
+
+#[test]
 fn top_level_help_includes_command_descriptions() {
     let help = render_help(Cli::command());
 
@@ -595,6 +1017,28 @@ fn issues_list_help_includes_option_descriptions() {
     assert!(issues_list_help.contains("Issue 状态过滤，默认 open"));
     assert!(issues_list_help.contains("--page-size <PAGE_SIZE>"));
     assert!(issues_list_help.contains("每页返回条数"));
+}
+
+#[test]
+fn pulls_help_includes_write_subcommands() {
+    let mut root = Cli::command();
+    let pulls_help = render_help(find_subcommand(&mut root, "pulls").clone());
+
+    assert!(help_has_command_description(
+        &pulls_help,
+        "create",
+        "创建 pull request"
+    ));
+    assert!(help_has_command_description(
+        &pulls_help,
+        "update",
+        "更新 pull request"
+    ));
+    assert!(help_has_command_description(
+        &pulls_help,
+        "merge",
+        "合并 pull request"
+    ));
 }
 
 #[test]
@@ -1907,4 +2351,35 @@ fn milestones_help_includes_subcommand_descriptions() {
     assert!(milestones_help.contains("get     读取单个 milestone"));
     assert!(milestones_help.contains("create  创建 milestone"));
     assert!(milestones_help.contains("delete  删除 milestone"));
+}
+
+#[test]
+fn repos_help_includes_branch_write_subcommand_descriptions() {
+    let mut root = Cli::command();
+    let repos_help = render_help(find_subcommand(&mut root, "repos").clone());
+
+    assert!(repos_help.contains("branch-create  创建仓库分支"));
+    assert!(repos_help.contains("branch-delete  删除仓库分支"));
+}
+
+#[test]
+fn actions_help_includes_write_subcommand_descriptions() {
+    let mut root = Cli::command();
+    let actions_help = render_help(find_subcommand(&mut root, "actions").clone());
+
+    assert!(help_has_command_description(
+        &actions_help,
+        "dispatch",
+        "触发 workflow 运行"
+    ));
+    assert!(help_has_command_description(
+        &actions_help,
+        "cancel",
+        "取消指定 run"
+    ));
+    assert!(help_has_command_description(
+        &actions_help,
+        "rerun",
+        "重跑指定 run"
+    ));
 }

@@ -20,6 +20,7 @@
 - 复用 `~/.codex/config.toml` 里的 `gitea` MCP 配置
 - 通过 stdio 与已配置的 Gitea MCP Server 通信，不重新发明鉴权
 - 提供 `doctor` 健康检查，自动脱敏敏感参数
+- 支持 `--fields` 对 JSON 输出做字段裁剪，降低 agent 调用时的 token 噪音
 - 提供仓库、Issue、PR、Actions 等常见排查命令
 - 提供 issue 创建、更新、评论、label 维护、milestone 管理与 time tracking 高层命令
 - 提供 release 与 tag 的创建、删除高层命令，覆盖常见版本对象写操作
@@ -87,6 +88,12 @@ make install-local
 cargo run -- --json doctor
 ```
 
+如果你希望在 agent 或脚本场景里减少不必要的输出字段，也可以配合 `--fields`：
+
+```bash
+cargo run -- --json --fields kind,cli.version,issues doctor
+```
+
 ## Quick Start
 
 检查配置和 MCP 连通性：
@@ -113,6 +120,12 @@ gitea-cli --json me
 gitea-cli --json issues get --owner YOUR_ORG --repo YOUR_REPO --index 123
 ```
 
+只输出关心的关键字段：
+
+```bash
+gitea-cli --json --fields kind,result.parsed.id,result.parsed.title issues get --owner YOUR_ORG --repo YOUR_REPO --index 123
+```
+
 解析 Gitea URL：
 
 ```bash
@@ -126,6 +139,14 @@ gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_
 ```
 
 ## Command Surface
+
+全局参数补充：
+
+- `--json`
+  输出 JSON，适合与 agent、脚本、`jq` 等组合使用。
+
+- `--fields`
+  仅在 JSON 输出中保留指定字段，支持逗号分隔和点号路径，例如 `kind,result.parsed.id,result.parsed.title`。
 
 ### Health
 
@@ -150,6 +171,12 @@ gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_
 
 - `gitea-cli --json repos branches --owner YOUR_ORG --repo YOUR_REPO`
   列出某个仓库的分支，用于排查默认分支、发布分支或临时分支状态。
+
+- `gitea-cli --json repos branch-create --owner YOUR_ORG --repo YOUR_REPO --branch feature/new-command --from main`
+  基于指定已有分支创建新分支，适合在自动化脚本或 agent 协作流里快速补齐分支准备动作。
+
+- `gitea-cli --json repos branch-delete --owner YOUR_ORG --repo YOUR_REPO --branch feature/new-command --yes`
+  删除指定仓库分支，属于危险操作，必须显式传 `--yes`。
 
 - `gitea-cli --json repos tree --owner YOUR_ORG --repo YOUR_REPO --ref main --recursive`
   读取某个仓库在指定 `ref` 下的文件树，可选择递归展开。
@@ -305,6 +332,15 @@ gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_
 - `gitea-cli --json pulls list --owner YOUR_ORG --repo YOUR_REPO --state open`
   列出某个仓库的 Pull Request，适合做待合并队列和状态排查。
 
+- `gitea-cli --json pulls create --owner YOUR_ORG --repo YOUR_REPO --head feature-branch --base main --title "Add feature"`
+  创建一个 Pull Request，可附带正文、label IDs、draft 标记和截止时间。
+
+- `gitea-cli --json pulls update --owner YOUR_ORG --repo YOUR_REPO --index 12 --title "New title"`
+  更新已有 Pull Request 的主体信息，可修改标题、正文、状态、目标分支、assignee、labels、milestone、截止时间、draft 状态和 maintainer 编辑权限。
+
+- `gitea-cli --json pulls merge --owner YOUR_ORG --repo YOUR_REPO --index 12 --merge-style squash`
+  合并一个 Pull Request，可控制 merge style、删除分支、强制合并、检查通过后自动合并和预期 head commit。
+
 - `gitea-cli --json pulls get --owner YOUR_ORG --repo YOUR_REPO --index 12`
   读取单个 Pull Request 的详情，包括标题、状态、分支信息等。
 
@@ -324,6 +360,15 @@ gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_
 
 - `gitea-cli --json actions log-preview --owner YOUR_ORG --repo YOUR_REPO --job-id 789`
   读取某个 job 的日志预览，适合先快速看失败摘要，不必先下载完整日志。
+
+- `gitea-cli --json actions dispatch --owner YOUR_ORG --repo YOUR_REPO --workflow-id release.yml --ref main --inputs '{"env":"prod"}'`
+  触发指定 workflow 运行，支持以内联 JSON 或 `@file` 方式传入 inputs。
+
+- `gitea-cli --json actions cancel --owner YOUR_ORG --repo YOUR_REPO --run-id 456`
+  取消指定 workflow run。
+
+- `gitea-cli --json actions rerun --owner YOUR_ORG --repo YOUR_REPO --run-id 456`
+  重跑指定 workflow run。
 
 ### URL Resolve
 
@@ -357,8 +402,8 @@ gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_
 - [ ] 仓库写操作与高级仓库管理
   暂未单独封装 `create repo`、`fork repo`、`search repos` 等高层命令。
 
-- [ ] 分支写操作
-  暂未单独封装 `create branch`、`delete branch`。
+- [x] 分支写操作
+  已提供 `repos branch-create`、`repos branch-delete`。
 
 - [x] Release / Tag / Commit
   已提供 `releases list/latest/get/create/delete`、`tags list/get/create/delete`、`commits list/get`。
@@ -369,17 +414,20 @@ gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_
 - [x] Issue 读取与写操作
   已提供 `issues list/get/comments/search/create/update/comment-add/comment-edit/labels/labels-add/label-remove/labels-replace/labels-clear`。
 
-- [x] Pull Request 只读操作
-  已提供 `pulls list`、`pulls get`、`pulls diff`。
+- [x] Pull Request 主体读写操作
+  已提供 `pulls list/create/update/merge/get/diff`。
 
-- [ ] Pull Request 审查与写操作
-  暂未单独封装创建 PR、增删 reviewer、review、dismiss、merge 等高层命令。
+- [ ] Pull Request 评审与 reviewer 管理
+  暂未单独封装增删 reviewer、review、dismiss 等高层命令，详见后续 issue 规划。
 
 - [x] Actions 只读排查路径
   已提供 `actions workflows`、`actions runs`、`actions jobs`、`actions log-preview`。
 
-- [ ] Actions 写操作与配置管理
-  暂未单独封装 workflow dispatch、cancel/rerun、secrets、variables 等高层命令。
+- [x] Actions 执行控制
+  已提供 `actions dispatch`、`actions cancel`、`actions rerun`。
+
+- [ ] Actions 配置管理
+  暂未单独封装 secrets、variables 等高层命令。
 
 - [x] Labels
   已提供 `labels repo-list/repo-get/repo-create/repo-edit/repo-delete/org-list/org-create/org-edit/org-delete`。
