@@ -9,6 +9,7 @@ use crate::{
     cli::{Cli, PlannedCommand, plan_command},
     config::{default_codex_config_path, load_gitea_server_config},
     mcp::McpSession,
+    output::select_fields,
 };
 
 pub fn run<I, T>(args: I) -> i32
@@ -30,7 +31,24 @@ where
 
     match run_cli(&cli) {
         Ok(result) => {
-            print_output(&result, cli.json);
+            let output = match shape_output(&result, &cli) {
+                Ok(output) => output,
+                Err(error) => {
+                    if cli.json {
+                        print_output(
+                            &json!({
+                                "ok": false,
+                                "error": error.to_string()
+                            }),
+                            true,
+                        );
+                    } else {
+                        eprintln!("{error:#}");
+                    }
+                    return 1;
+                }
+            };
+            print_output(&output, cli.json);
             0
         }
         Err(error) => {
@@ -48,6 +66,14 @@ where
             1
         }
     }
+}
+
+fn shape_output(value: &Value, cli: &Cli) -> Result<Value> {
+    if !cli.json || cli.fields.is_empty() {
+        return Ok(value.clone());
+    }
+
+    select_fields(value, &cli.fields)
 }
 
 fn run_cli(cli: &Cli) -> Result<Value> {
