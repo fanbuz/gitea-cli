@@ -342,6 +342,15 @@ gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_
 - `gitea-cli --json actions log-preview --owner YOUR_ORG --repo YOUR_REPO --job-id 789`
   读取某个 job 的日志预览，适合先快速看失败摘要，不必先下载完整日志。
 
+- `gitea-cli --json actions dispatch --owner YOUR_ORG --repo YOUR_REPO --workflow-id release.yml --ref main --inputs '{"env":"prod"}'`
+  触发指定 workflow 运行，支持以内联 JSON 或 `@file` 方式传入 inputs。
+
+- `gitea-cli --json actions cancel --owner YOUR_ORG --repo YOUR_REPO --run-id 456`
+  取消指定 workflow run。
+
+- `gitea-cli --json actions rerun --owner YOUR_ORG --repo YOUR_REPO --run-id 456`
+  重跑指定 workflow run。
+
 ### URL Resolve
 
 - `gitea-cli --json resolve repo <repo-url>`
@@ -395,8 +404,11 @@ gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_
 - [x] Actions 只读排查路径
   已提供 `actions workflows`、`actions runs`、`actions jobs`、`actions log-preview`。
 
-- [ ] Actions 写操作与配置管理
-  暂未单独封装 workflow dispatch、cancel/rerun、secrets、variables 等高层命令。
+- [x] Actions 执行控制
+  已提供 `actions dispatch`、`actions cancel`、`actions rerun`。
+
+- [ ] Actions 配置管理
+  暂未单独封装 secrets、variables 等高层命令。
 
 - [x] Labels
   已提供 `labels repo-list/repo-get/repo-create/repo-edit/repo-delete/org-list/org-create/org-edit/org-delete`。
