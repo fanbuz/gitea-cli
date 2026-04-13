@@ -290,6 +290,8 @@ pub enum PullsSubcommand {
     Create(PullCreateArgs),
     /// 更新 pull request
     Update(PullUpdateArgs),
+    /// 合并 pull request
+    Merge(PullMergeArgs),
     /// 读取单个 pull request 详情
     Get(PullTargetArgs),
     /// 读取单个 pull request 的 diff
@@ -952,6 +954,54 @@ pub struct PullUpdateArgs {
     /// 是否设置为 draft
     #[arg(long)]
     pub draft: Option<bool>,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct PullMergeArgs {
+    #[command(flatten)]
+    pub target: PullTargetArgs,
+    /// 合并策略
+    #[arg(long = "merge-style")]
+    pub merge_style: Option<PullMergeStyle>,
+    /// 合并标题
+    #[arg(long)]
+    pub title: Option<String>,
+    /// 合并消息
+    #[arg(long)]
+    pub message: Option<String>,
+    /// 合并后删除分支
+    #[arg(long)]
+    pub delete_branch: bool,
+    /// 强制合并
+    #[arg(long)]
+    pub force_merge: bool,
+    /// 当检查通过后自动合并
+    #[arg(long = "merge-when-checks-succeed")]
+    pub merge_when_checks_succeed: bool,
+    /// 期望的 head commit SHA
+    #[arg(long = "head-commit-id")]
+    pub head_commit_id: Option<String>,
+}
+
+#[derive(Debug, Clone, clap::ValueEnum)]
+pub enum PullMergeStyle {
+    Merge,
+    Rebase,
+    RebaseMerge,
+    Squash,
+    FastForwardOnly,
+}
+
+impl PullMergeStyle {
+    fn as_api_value(&self) -> &'static str {
+        match self {
+            Self::Merge => "merge",
+            Self::Rebase => "rebase",
+            Self::RebaseMerge => "rebase-merge",
+            Self::Squash => "squash",
+            Self::FastForwardOnly => "fast-forward-only",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Args)]
@@ -1661,6 +1711,39 @@ fn plan_pulls(command: &PullsCommand) -> Result<PlannedCommand> {
                 args.allow_maintainer_edit,
             );
             insert_optional_bool(&mut params, "draft", args.draft);
+            Ok(PlannedCommand::tool_call(
+                "pull_request_write",
+                Value::Object(params),
+            ))
+        }
+        PullsSubcommand::Merge(args) => {
+            let mut params = Map::new();
+            params.insert("method".to_string(), json!("merge"));
+            params.insert("owner".to_string(), json!(args.target.owner));
+            params.insert("repo".to_string(), json!(args.target.repo));
+            params.insert("index".to_string(), json!(args.target.index));
+            if let Some(merge_style) = &args.merge_style {
+                params.insert(
+                    "merge_style".to_string(),
+                    json!(merge_style.as_api_value()),
+                );
+            }
+            insert_optional_string(&mut params, "title", args.title.as_deref());
+            insert_optional_string(&mut params, "message", args.message.as_deref());
+            insert_optional_string(
+                &mut params,
+                "head_commit_id",
+                args.head_commit_id.as_deref(),
+            );
+            if args.delete_branch {
+                params.insert("delete_branch".to_string(), json!(true));
+            }
+            if args.force_merge {
+                params.insert("force_merge".to_string(), json!(true));
+            }
+            if args.merge_when_checks_succeed {
+                params.insert("merge_when_checks_succeed".to_string(), json!(true));
+            }
             Ok(PlannedCommand::tool_call(
                 "pull_request_write",
                 Value::Object(params),

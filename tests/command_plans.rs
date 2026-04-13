@@ -467,6 +467,55 @@ fn pulls_update_maps_to_pull_request_write_update() {
 }
 
 #[test]
+fn pulls_merge_maps_to_pull_request_write_merge() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "pulls",
+        "merge",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--index",
+        "12",
+        "--merge-style",
+        "squash",
+        "--title",
+        "Merge PR",
+        "--message",
+        "merge details",
+        "--delete-branch",
+        "--force-merge",
+        "--merge-when-checks-succeed",
+        "--head-commit-id",
+        "abcdef123456",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "pull_request_write",
+            serde_json::json!({
+                "method": "merge",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "index": 12,
+                "merge_style": "squash",
+                "title": "Merge PR",
+                "message": "merge details",
+                "delete_branch": true,
+                "force_merge": true,
+                "merge_when_checks_succeed": true,
+                "head_commit_id": "abcdef123456"
+            })
+        )
+    );
+}
+
+#[test]
 fn top_level_help_includes_command_descriptions() {
     let help = render_help(Cli::command());
 
