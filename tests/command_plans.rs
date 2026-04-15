@@ -1206,6 +1206,75 @@ fn pulls_review_comments_help_includes_required_options() {
 }
 
 #[test]
+fn pulls_help_includes_review_subcommands() {
+    let mut root = Cli::command();
+    let pulls_help = render_help(find_subcommand(&mut root, "pulls").clone());
+
+    assert!(help_has_command_description(
+        &pulls_help,
+        "reviews",
+        "读取 pull request review 列表"
+    ));
+    assert!(help_has_command_description(
+        &pulls_help,
+        "review-get",
+        "读取单个 pull request review"
+    ));
+    assert!(help_has_command_description(
+        &pulls_help,
+        "reviewers-add",
+        "为 pull request 添加 reviewer"
+    ));
+    assert!(help_has_command_description(
+        &pulls_help,
+        "reviewers-remove",
+        "为 pull request 移除 reviewer"
+    ));
+    assert!(help_has_command_description(
+        &pulls_help,
+        "review-create",
+        "创建 pull request review"
+    ));
+    assert!(help_has_command_description(
+        &pulls_help,
+        "review-submit",
+        "提交 pull request review"
+    ));
+    assert!(help_has_command_description(
+        &pulls_help,
+        "review-delete",
+        "删除 pull request review"
+    ));
+    assert!(help_has_command_description(
+        &pulls_help,
+        "review-dismiss",
+        "撤销 pull request review"
+    ));
+}
+
+#[test]
+fn pulls_review_submit_help_includes_state_options() {
+    let mut root = Cli::command();
+    let pulls = find_subcommand(&mut root, "pulls");
+    let submit_help = render_help(find_subcommand(pulls, "review-submit").clone());
+
+    assert!(submit_help.contains("--state <STATE>"));
+    assert!(submit_help.contains("approved"));
+    assert!(submit_help.contains("request-changes"));
+    assert!(submit_help.contains("comment"));
+}
+
+#[test]
+fn pulls_review_delete_help_mentions_yes_guard() {
+    let mut root = Cli::command();
+    let pulls = find_subcommand(&mut root, "pulls");
+    let delete_help = render_help(find_subcommand(pulls, "review-delete").clone());
+
+    assert!(delete_help.contains("--yes"));
+    assert!(delete_help.contains("确认执行危险操作"));
+}
+
+#[test]
 fn pulls_reviewers_add_maps_to_pull_request_write_add_reviewers() {
     let cli = Cli::try_parse_from([
         "gitea-cli",

@@ -355,7 +355,7 @@ pub enum PullsSubcommand {
     ReviewSubmit(PullReviewSubmitArgs),
     /// 删除 pull request review
     ReviewDelete(PullReviewDeleteArgs),
-    /// Dismiss pull request review
+    /// 撤销 pull request review
     ReviewDismiss(PullReviewDismissArgs),
     /// 读取单个 pull request 的 diff
     Diff(PullDiffArgs),

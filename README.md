@@ -356,6 +356,30 @@ gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_
 - `gitea-cli --json pulls review-comments --owner YOUR_ORG --repo YOUR_REPO --index 12 --review-id 7 --comment-id 101`
   读取某个 Pull Request review 下的评论列表，并在本地仅保留指定评论。
 
+- `gitea-cli --json pulls reviews --owner YOUR_ORG --repo YOUR_REPO --index 12`
+  读取某个 Pull Request 的 review 列表，适合查看当前评审流转情况。
+
+- `gitea-cli --json pulls review-get --owner YOUR_ORG --repo YOUR_REPO --index 12 --review-id 7`
+  读取单个 Pull Request review 的详情。
+
+- `gitea-cli --json pulls reviewers-add --owner YOUR_ORG --repo YOUR_REPO --index 12 --reviewer alice --reviewer bob`
+  为指定 Pull Request 添加 reviewer。
+
+- `gitea-cli --json pulls reviewers-remove --owner YOUR_ORG --repo YOUR_REPO --index 12 --reviewer alice`
+  为指定 Pull Request 移除 reviewer。
+
+- `gitea-cli --json pulls review-create --owner YOUR_ORG --repo YOUR_REPO --index 12 --body "needs review"`
+  创建一个 review 壳子，可选附带 `--commit-id`。
+
+- `gitea-cli --json pulls review-submit --owner YOUR_ORG --repo YOUR_REPO --index 12 --review-id 7 --state APPROVED --body "looks good"`
+  提交一个已有 review，状态严格限制为 `APPROVED`、`REQUEST_CHANGES` 或 `COMMENT`。
+
+- `gitea-cli --json pulls review-delete --owner YOUR_ORG --repo YOUR_REPO --index 12 --review-id 7 --yes`
+  删除一个 review，属于危险操作，必须显式传 `--yes`。
+
+- `gitea-cli --json pulls review-dismiss --owner YOUR_ORG --repo YOUR_REPO --index 12 --review-id 7 --message "stale review"`
+  撤销一个 review，并要求显式说明原因。
+
 ### Actions
 
 - `gitea-cli --json actions workflows --owner YOUR_ORG --repo YOUR_REPO`
@@ -424,10 +448,10 @@ gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_
   已提供 `issues list/get/comments/search/create/update/comment-add/comment-edit/labels/labels-add/label-remove/labels-replace/labels-clear`，其中 `issues comments` 支持通过可重复 `--comment-id` 过滤评论子集。
 
 - [x] Pull Request 主体读写操作
-  已提供 `pulls list/create/update/merge/get/diff/review-comments`。
+  已提供 `pulls list/create/update/merge/get/diff/review-comments/reviews/review-get`。
 
-- [ ] Pull Request 评审与 reviewer 管理
-  暂未单独封装增删 reviewer、review、dismiss 等高层命令，详见后续 issue 规划。
+- [x] Pull Request 评审与 reviewer 管理
+  已提供 `pulls reviewers-add/reviewers-remove/review-create/review-submit/review-delete/review-dismiss`。
 
 - [x] Actions 只读排查路径
   已提供 `actions workflows`、`actions runs`、`actions jobs`、`actions log-preview`。
