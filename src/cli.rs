@@ -345,6 +345,18 @@ pub enum PullsSubcommand {
     Reviews(PullTargetArgs),
     /// 读取单个 pull request review
     ReviewGet(PullReviewTargetArgs),
+    /// 为 pull request 添加 reviewer
+    ReviewersAdd(PullReviewersArgs),
+    /// 为 pull request 移除 reviewer
+    ReviewersRemove(PullReviewersArgs),
+    /// 创建 pull request review
+    ReviewCreate(PullReviewCreateArgs),
+    /// 提交 pull request review
+    ReviewSubmit(PullReviewSubmitArgs),
+    /// 删除 pull request review
+    ReviewDelete(PullReviewDeleteArgs),
+    /// Dismiss pull request review
+    ReviewDismiss(PullReviewDismissArgs),
     /// 读取单个 pull request 的 diff
     Diff(PullDiffArgs),
     /// 读取 pull request review 评论列表
@@ -1058,6 +1070,74 @@ pub struct PullReviewTargetArgs {
     /// Review ID
     #[arg(long = "review-id")]
     pub review_id: u64,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct PullReviewersArgs {
+    #[command(flatten)]
+    pub target: PullTargetArgs,
+    /// Reviewer 用户名，可重复传入
+    #[arg(long = "reviewer", required = true)]
+    pub reviewers: Vec<String>,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct PullReviewCreateArgs {
+    #[command(flatten)]
+    pub target: PullTargetArgs,
+    /// Review 对应的 commit SHA
+    #[arg(long = "commit-id")]
+    pub commit_id: Option<String>,
+    /// Review 正文
+    #[arg(long)]
+    pub body: String,
+}
+
+#[derive(Debug, Clone, clap::ValueEnum)]
+pub enum PullReviewSubmitState {
+    Approved,
+    RequestChanges,
+    Comment,
+}
+
+impl PullReviewSubmitState {
+    fn as_api_value(&self) -> &'static str {
+        match self {
+            Self::Approved => "APPROVED",
+            Self::RequestChanges => "REQUEST_CHANGES",
+            Self::Comment => "COMMENT",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct PullReviewSubmitArgs {
+    #[command(flatten)]
+    pub target: PullReviewTargetArgs,
+    /// Review 结果
+    #[arg(long)]
+    pub state: PullReviewSubmitState,
+    /// Review 正文
+    #[arg(long)]
+    pub body: String,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct PullReviewDeleteArgs {
+    #[command(flatten)]
+    pub target: PullReviewTargetArgs,
+    /// 确认执行危险操作
+    #[arg(long)]
+    pub yes: bool,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct PullReviewDismissArgs {
+    #[command(flatten)]
+    pub target: PullReviewTargetArgs,
+    /// Dismiss 原因
+    #[arg(long)]
+    pub message: String,
 }
 
 #[derive(Debug, Clone, Args)]
@@ -2056,6 +2136,75 @@ fn plan_pulls(command: &PullsCommand) -> Result<PlannedCommand> {
                 "index": args.target.index,
                 "review_id": args.review_id,
                 "method": "get_review"
+            }),
+        )),
+        PullsSubcommand::ReviewersAdd(args) => Ok(PlannedCommand::tool_call(
+            "pull_request_write",
+            json!({
+                "method": "add_reviewers",
+                "owner": args.target.owner,
+                "repo": args.target.repo,
+                "index": args.target.index,
+                "reviewers": args.reviewers
+            }),
+        )),
+        PullsSubcommand::ReviewersRemove(args) => Ok(PlannedCommand::tool_call(
+            "pull_request_write",
+            json!({
+                "method": "remove_reviewers",
+                "owner": args.target.owner,
+                "repo": args.target.repo,
+                "index": args.target.index,
+                "reviewers": args.reviewers
+            }),
+        )),
+        PullsSubcommand::ReviewCreate(args) => {
+            let mut params = Map::new();
+            params.insert("method".to_string(), json!("create"));
+            params.insert("owner".to_string(), json!(args.target.owner));
+            params.insert("repo".to_string(), json!(args.target.repo));
+            params.insert("index".to_string(), json!(args.target.index));
+            params.insert("body".to_string(), json!(args.body));
+            insert_optional_string(&mut params, "commit_id", args.commit_id.as_deref());
+            Ok(PlannedCommand::tool_call(
+                "pull_request_review_write",
+                Value::Object(params),
+            ))
+        }
+        PullsSubcommand::ReviewSubmit(args) => Ok(PlannedCommand::tool_call(
+            "pull_request_review_write",
+            json!({
+                "method": "submit",
+                "owner": args.target.target.owner,
+                "repo": args.target.target.repo,
+                "index": args.target.target.index,
+                "review_id": args.target.review_id,
+                "state": args.state.as_api_value(),
+                "body": args.body
+            }),
+        )),
+        PullsSubcommand::ReviewDelete(args) => {
+            require_yes(args.yes, "删除 pull request review")?;
+            Ok(PlannedCommand::tool_call(
+                "pull_request_review_write",
+                json!({
+                    "method": "delete",
+                    "owner": args.target.target.owner,
+                    "repo": args.target.target.repo,
+                    "index": args.target.target.index,
+                    "review_id": args.target.review_id
+                }),
+            ))
+        }
+        PullsSubcommand::ReviewDismiss(args) => Ok(PlannedCommand::tool_call(
+            "pull_request_review_write",
+            json!({
+                "method": "dismiss",
+                "owner": args.target.target.owner,
+                "repo": args.target.target.repo,
+                "index": args.target.target.index,
+                "review_id": args.target.review_id,
+                "message": args.message
             }),
         )),
         PullsSubcommand::Diff(args) => Ok(PlannedCommand::tool_call(
