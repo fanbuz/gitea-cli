@@ -25,7 +25,9 @@ pub enum PlannedCommand {
         params: Value,
         filter: Option<ResultFilter>,
     },
-    Resolve { result: Value },
+    Resolve {
+        result: Value,
+    },
 }
 
 impl PlannedCommand {
@@ -161,6 +163,16 @@ pub enum ReposSubcommand {
     BranchDelete(RepoBranchDeleteArgs),
     /// 读取指定仓库在某个 ref 下的文件树
     Tree(RepoTreeArgs),
+    /// 读取指定目录内容
+    Dir(RepoDirArgs),
+    /// 读取指定文件内容
+    File(RepoFileArgs),
+    /// 创建仓库文件
+    FileCreate(RepoFileWriteArgs),
+    /// 更新仓库文件
+    FileUpdate(RepoFileUpdateArgs),
+    /// 删除仓库文件
+    FileDelete(RepoFileDeleteArgs),
 }
 
 #[derive(Debug, Clone, Args)]
@@ -483,6 +495,93 @@ pub struct RepoTreeArgs {
     /// 每页返回条数
     #[arg(long = "page-size", default_value_t = 100)]
     pub page_size: u32,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct RepoDirArgs {
+    #[command(flatten)]
+    pub target: RepoTargetArgs,
+    /// 要读取的分支、tag 或 commit，默认 main
+    #[arg(long = "ref", default_value = "main")]
+    pub git_ref: String,
+    /// 目录路径；不传时读取仓库根目录
+    #[arg(long, default_value = "")]
+    pub path: String,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct RepoFileArgs {
+    #[command(flatten)]
+    pub target: RepoTargetArgs,
+    /// 要读取的分支、tag 或 commit，默认 main
+    #[arg(long = "ref", default_value = "main")]
+    pub git_ref: String,
+    /// 文件路径
+    #[arg(long)]
+    pub path: String,
+    /// 是否在结果中附带逐行内容
+    #[arg(long = "with-lines")]
+    pub with_lines: bool,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct RepoFileContentArgs {
+    /// 文件内容
+    #[arg(long, conflicts_with = "content_file")]
+    pub content: Option<String>,
+    /// 从本地文件读取内容
+    #[arg(long = "content-file", conflicts_with = "content")]
+    pub content_file: Option<String>,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct RepoFileWriteArgs {
+    #[command(flatten)]
+    pub target: RepoTargetArgs,
+    /// 仓库内文件路径
+    #[arg(long)]
+    pub path: String,
+    /// 目标分支名
+    #[arg(long = "branch")]
+    pub branch_name: String,
+    /// 提交消息
+    #[arg(long)]
+    pub message: String,
+    /// 在新分支上创建文件
+    #[arg(long = "new-branch")]
+    pub new_branch_name: Option<String>,
+    #[command(flatten)]
+    pub content: RepoFileContentArgs,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct RepoFileUpdateArgs {
+    #[command(flatten)]
+    pub write: RepoFileWriteArgs,
+    /// 当前文件 SHA，用于并发保护
+    #[arg(long)]
+    pub sha: Option<String>,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct RepoFileDeleteArgs {
+    #[command(flatten)]
+    pub target: RepoTargetArgs,
+    /// 仓库内文件路径
+    #[arg(long)]
+    pub path: String,
+    /// 目标分支名
+    #[arg(long = "branch")]
+    pub branch_name: String,
+    /// 当前文件 SHA
+    #[arg(long)]
+    pub sha: Option<String>,
+    /// 提交消息
+    #[arg(long)]
+    pub message: String,
+    /// 确认执行危险操作
+    #[arg(long)]
+    pub yes: bool,
 }
 
 #[derive(Debug, Clone, Args)]
@@ -1446,6 +1545,86 @@ fn plan_repos(command: &ReposCommand) -> Result<PlannedCommand> {
                 "perPage": args.page_size
             }),
         )),
+        ReposSubcommand::Dir(args) => Ok(PlannedCommand::tool_call(
+            "get_dir_contents",
+            json!({
+                "owner": args.target.owner,
+                "repo": args.target.repo,
+                "ref": args.git_ref,
+                "filePath": args.path
+            }),
+        )),
+        ReposSubcommand::File(args) => Ok(PlannedCommand::tool_call(
+            "get_file_contents",
+            json!({
+                "owner": args.target.owner,
+                "repo": args.target.repo,
+                "ref": args.git_ref,
+                "filePath": args.path,
+                "withLines": args.with_lines
+            }),
+        )),
+        ReposSubcommand::FileCreate(args) => {
+            let content = resolve_repo_file_content(&args.content)?;
+            let mut params = Map::new();
+            params.insert("owner".to_string(), json!(args.target.owner));
+            params.insert("repo".to_string(), json!(args.target.repo));
+            params.insert("branch_name".to_string(), json!(args.branch_name));
+            params.insert("filePath".to_string(), json!(args.path));
+            params.insert("content".to_string(), json!(content));
+            params.insert("message".to_string(), json!(args.message));
+            insert_optional_string(
+                &mut params,
+                "new_branch_name",
+                args.new_branch_name.as_deref(),
+            );
+            Ok(PlannedCommand::tool_call(
+                "create_or_update_file",
+                Value::Object(params),
+            ))
+        }
+        ReposSubcommand::FileUpdate(args) => {
+            let content = resolve_repo_file_content(&args.write.content)?;
+            let sha = args
+                .sha
+                .as_deref()
+                .ok_or_else(|| anyhow!("更新仓库文件需要显式传入 --sha"))?;
+            let mut params = Map::new();
+            params.insert("owner".to_string(), json!(args.write.target.owner));
+            params.insert("repo".to_string(), json!(args.write.target.repo));
+            params.insert("branch_name".to_string(), json!(args.write.branch_name));
+            params.insert("filePath".to_string(), json!(args.write.path));
+            params.insert("content".to_string(), json!(content));
+            params.insert("message".to_string(), json!(args.write.message));
+            params.insert("sha".to_string(), json!(sha));
+            insert_optional_string(
+                &mut params,
+                "new_branch_name",
+                args.write.new_branch_name.as_deref(),
+            );
+            Ok(PlannedCommand::tool_call(
+                "create_or_update_file",
+                Value::Object(params),
+            ))
+        }
+        ReposSubcommand::FileDelete(args) => {
+            require_yes(args.yes, "删除仓库文件")?;
+            let sha = args
+                .sha
+                .as_deref()
+                .ok_or_else(|| anyhow!("删除仓库文件需要显式传入 --sha"))?;
+            Ok(PlannedCommand::tool_call(
+                "delete_file",
+                json!({
+                    "owner": args.target.owner,
+                    "repo": args.target.repo,
+                    "branch_name": args.branch_name,
+                    "filePath": args.path,
+                    "message": args.message,
+                    "sha": sha
+                }),
+            ))
+        }
     }
 }
 
@@ -2084,10 +2263,7 @@ fn plan_pulls(command: &PullsCommand) -> Result<PlannedCommand> {
             params.insert("repo".to_string(), json!(args.target.repo));
             params.insert("index".to_string(), json!(args.target.index));
             if let Some(merge_style) = &args.merge_style {
-                params.insert(
-                    "merge_style".to_string(),
-                    json!(merge_style.as_api_value()),
-                );
+                params.insert("merge_style".to_string(), json!(merge_style.as_api_value()));
             }
             insert_optional_string(&mut params, "title", args.title.as_deref());
             insert_optional_string(&mut params, "message", args.message.as_deref());
@@ -2233,10 +2409,7 @@ fn plan_pulls(command: &PullsCommand) -> Result<PlannedCommand> {
     }
 }
 
-fn with_optional_comment_filter(
-    planned: PlannedCommand,
-    comment_ids: &[u64],
-) -> PlannedCommand {
+fn with_optional_comment_filter(planned: PlannedCommand, comment_ids: &[u64]) -> PlannedCommand {
     if comment_ids.is_empty() {
         return planned;
     }
@@ -2426,6 +2599,17 @@ fn parse_json_object_input(raw: &str) -> Result<Value> {
     match value {
         Value::Object(_) => Ok(value),
         _ => bail!("workflow inputs 必须是 JSON 对象"),
+    }
+}
+
+fn resolve_repo_file_content(args: &RepoFileContentArgs) -> Result<String> {
+    match (&args.content, &args.content_file) {
+        (Some(content), None) => Ok(content.clone()),
+        (None, Some(path)) => {
+            fs::read_to_string(path).with_context(|| format!("读取内容文件失败: {path}"))
+        }
+        (None, None) => bail!("创建或更新仓库文件需要传入 --content 或 --content-file"),
+        (Some(_), Some(_)) => bail!("--content 与 --content-file 不能同时传入"),
     }
 }
 

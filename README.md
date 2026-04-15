@@ -181,6 +181,21 @@ gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_
 - `gitea-cli --json repos tree --owner YOUR_ORG --repo YOUR_REPO --ref main --recursive`
   读取某个仓库在指定 `ref` 下的文件树，可选择递归展开。
 
+- `gitea-cli --json repos dir --owner YOUR_ORG --repo YOUR_REPO --ref main --path docs`
+  读取某个仓库在指定 `ref` 下的目录内容；不传 `--path` 时默认读取仓库根目录。
+
+- `gitea-cli --json repos file --owner YOUR_ORG --repo YOUR_REPO --path README.md --ref main --with-lines`
+  读取某个仓库文件内容，可选 `--with-lines` 让底层返回逐行内容。
+
+- `gitea-cli --json repos file-create --owner YOUR_ORG --repo YOUR_REPO --path docs/guide.md --branch main --message "create guide" --content "# guide"`
+  在指定分支创建仓库文件，也可以改用 `--content-file ./guide.md` 从本地文件读取内容；可选 `--new-branch` 在新分支上提交。
+
+- `gitea-cli --json repos file-update --owner YOUR_ORG --repo YOUR_REPO --path docs/guide.md --branch main --sha CURRENT_FILE_SHA --message "update guide" --content-file ./guide.md`
+  更新已有仓库文件，必须显式传入当前文件 `--sha`，用于并发保护；内容同样支持 `--content` 与 `--content-file`。
+
+- `gitea-cli --json repos file-delete --owner YOUR_ORG --repo YOUR_REPO --path docs/guide.md --branch main --sha CURRENT_FILE_SHA --message "delete guide" --yes`
+  删除仓库文件，必须同时提供当前文件 `--sha` 和确认参数 `--yes`。
+
 ### Releases
 
 - `gitea-cli --json releases list --owner YOUR_ORG --repo YOUR_REPO`
@@ -441,8 +456,8 @@ gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_
 - [x] Release / Tag / Commit
   已提供 `releases list/latest/get/create/delete`、`tags list/get/create/delete`、`commits list/get`。
 
-- [ ] 文件与目录内容管理
-  暂未单独封装文件读取、目录读取、创建文件、更新文件、删除文件等高层命令。
+- [x] 文件与目录内容管理
+  已提供 `repos dir`、`repos file`、`repos file-create`、`repos file-update`、`repos file-delete`。
 
 - [x] Issue 读取与写操作
   已提供 `issues list/get/comments/search/create/update/comment-add/comment-edit/labels/labels-add/label-remove/labels-replace/labels-clear`，其中 `issues comments` 支持通过可重复 `--comment-id` 过滤评论子集。

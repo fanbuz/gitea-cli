@@ -325,6 +325,282 @@ fn repos_branch_create_maps_to_create_branch() {
 }
 
 #[test]
+fn repos_dir_maps_to_get_dir_contents() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "repos",
+        "dir",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--ref",
+        "develop",
+        "--path",
+        "docs",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "get_dir_contents",
+            serde_json::json!({
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "ref": "develop",
+                "filePath": "docs"
+            })
+        )
+    );
+}
+
+#[test]
+fn repos_dir_defaults_to_repo_root() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "repos",
+        "dir",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "get_dir_contents",
+            serde_json::json!({
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "ref": "main",
+                "filePath": ""
+            })
+        )
+    );
+}
+
+#[test]
+fn repos_file_maps_to_get_file_contents_with_lines() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "repos",
+        "file",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--path",
+        "README.md",
+        "--ref",
+        "main",
+        "--with-lines",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "get_file_contents",
+            serde_json::json!({
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "ref": "main",
+                "filePath": "README.md",
+                "withLines": true
+            })
+        )
+    );
+}
+
+#[test]
+fn repos_file_create_maps_inline_content() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "repos",
+        "file-create",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--path",
+        "docs/guide.md",
+        "--branch",
+        "main",
+        "--message",
+        "create guide",
+        "--content",
+        "# guide",
+        "--new-branch",
+        "feature/add-guide",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "create_or_update_file",
+            serde_json::json!({
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "branch_name": "main",
+                "filePath": "docs/guide.md",
+                "content": "# guide",
+                "message": "create guide",
+                "new_branch_name": "feature/add-guide"
+            })
+        )
+    );
+}
+
+#[test]
+fn repos_file_create_reads_content_file() {
+    let temp = tempfile::NamedTempFile::new().unwrap();
+    fs::write(temp.path(), "# from file").unwrap();
+
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "repos",
+        "file-create",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--path",
+        "docs/guide.md",
+        "--branch",
+        "main",
+        "--message",
+        "create guide",
+        "--content-file",
+        temp.path().to_str().unwrap(),
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "create_or_update_file",
+            serde_json::json!({
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "branch_name": "main",
+                "filePath": "docs/guide.md",
+                "content": "# from file",
+                "message": "create guide"
+            })
+        )
+    );
+}
+
+#[test]
+fn repos_file_create_requires_content_input() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "repos",
+        "file-create",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--path",
+        "docs/guide.md",
+        "--branch",
+        "main",
+        "--message",
+        "create guide",
+    ])
+    .unwrap();
+
+    let error = plan_command(&cli).unwrap_err();
+
+    assert!(error.to_string().contains("--content"));
+}
+
+#[test]
+fn repos_file_update_requires_sha() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "repos",
+        "file-update",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--path",
+        "docs/guide.md",
+        "--branch",
+        "main",
+        "--message",
+        "update guide",
+        "--content",
+        "# guide",
+    ])
+    .unwrap();
+
+    let error = plan_command(&cli).unwrap_err();
+
+    assert!(error.to_string().contains("--sha"));
+}
+
+#[test]
+fn repos_file_update_maps_to_create_or_update_file() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "repos",
+        "file-update",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--path",
+        "docs/guide.md",
+        "--branch",
+        "main",
+        "--sha",
+        "abc123",
+        "--message",
+        "update guide",
+        "--content",
+        "# guide v2",
+        "--new-branch",
+        "feature/update-guide",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "create_or_update_file",
+            serde_json::json!({
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "branch_name": "main",
+                "filePath": "docs/guide.md",
+                "content": "# guide v2",
+                "message": "update guide",
+                "sha": "abc123",
+                "new_branch_name": "feature/update-guide"
+            })
+        )
+    );
+}
+
+#[test]
 fn repos_branch_delete_requires_yes() {
     let cli = Cli::try_parse_from([
         "gitea-cli",
@@ -342,6 +618,72 @@ fn repos_branch_delete_requires_yes() {
     let error = plan_command(&cli).unwrap_err();
 
     assert!(error.to_string().contains("--yes"));
+}
+
+#[test]
+fn repos_file_delete_requires_yes() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "repos",
+        "file-delete",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--path",
+        "docs/guide.md",
+        "--branch",
+        "main",
+        "--sha",
+        "abc123",
+        "--message",
+        "delete guide",
+    ])
+    .unwrap();
+
+    let error = plan_command(&cli).unwrap_err();
+
+    assert!(error.to_string().contains("--yes"));
+}
+
+#[test]
+fn repos_file_delete_maps_when_confirmed() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "repos",
+        "file-delete",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--path",
+        "docs/guide.md",
+        "--branch",
+        "main",
+        "--sha",
+        "abc123",
+        "--message",
+        "delete guide",
+        "--yes",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "delete_file",
+            serde_json::json!({
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "branch_name": "main",
+                "filePath": "docs/guide.md",
+                "sha": "abc123",
+                "message": "delete guide"
+            })
+        )
+    );
 }
 
 #[test]
@@ -1561,8 +1903,16 @@ fn tags_help_includes_write_subcommand_descriptions() {
     let mut root = Cli::command();
     let tags_help = render_help(find_subcommand(&mut root, "tags").clone());
 
-    assert!(help_has_command_description(&tags_help, "create", "创建 tag"));
-    assert!(help_has_command_description(&tags_help, "delete", "删除 tag"));
+    assert!(help_has_command_description(
+        &tags_help,
+        "create",
+        "创建 tag"
+    ));
+    assert!(help_has_command_description(
+        &tags_help,
+        "delete",
+        "删除 tag"
+    ));
 }
 
 #[test]
@@ -2901,6 +3251,31 @@ fn repos_help_includes_branch_write_subcommand_descriptions() {
 
     assert!(repos_help.contains("branch-create  创建仓库分支"));
     assert!(repos_help.contains("branch-delete  删除仓库分支"));
+    assert!(help_has_command_description(
+        &repos_help,
+        "dir",
+        "读取指定目录内容"
+    ));
+    assert!(help_has_command_description(
+        &repos_help,
+        "file",
+        "读取指定文件内容"
+    ));
+    assert!(help_has_command_description(
+        &repos_help,
+        "file-create",
+        "创建仓库文件"
+    ));
+    assert!(help_has_command_description(
+        &repos_help,
+        "file-update",
+        "更新仓库文件"
+    ));
+    assert!(help_has_command_description(
+        &repos_help,
+        "file-delete",
+        "删除仓库文件"
+    ));
 }
 
 #[test]
