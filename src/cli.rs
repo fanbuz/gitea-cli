@@ -341,6 +341,10 @@ pub enum PullsSubcommand {
     Merge(PullMergeArgs),
     /// 读取单个 pull request 详情
     Get(PullTargetArgs),
+    /// 读取 pull request review 列表
+    Reviews(PullTargetArgs),
+    /// 读取单个 pull request review
+    ReviewGet(PullReviewTargetArgs),
     /// 读取单个 pull request 的 diff
     Diff(PullDiffArgs),
     /// 读取 pull request review 评论列表
@@ -1045,6 +1049,15 @@ pub struct PullDiffArgs {
     /// 是否包含二进制文件变更
     #[arg(long)]
     pub binary: bool,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct PullReviewTargetArgs {
+    #[command(flatten)]
+    pub target: PullTargetArgs,
+    /// Review ID
+    #[arg(long = "review-id")]
+    pub review_id: u64,
 }
 
 #[derive(Debug, Clone, Args)]
@@ -2024,6 +2037,25 @@ fn plan_pulls(command: &PullsCommand) -> Result<PlannedCommand> {
                 "repo": args.repo,
                 "index": args.index,
                 "method": "get"
+            }),
+        )),
+        PullsSubcommand::Reviews(args) => Ok(PlannedCommand::tool_call(
+            "pull_request_read",
+            json!({
+                "owner": args.owner,
+                "repo": args.repo,
+                "index": args.index,
+                "method": "get_reviews"
+            }),
+        )),
+        PullsSubcommand::ReviewGet(args) => Ok(PlannedCommand::tool_call(
+            "pull_request_read",
+            json!({
+                "owner": args.target.owner,
+                "repo": args.target.repo,
+                "index": args.target.index,
+                "review_id": args.review_id,
+                "method": "get_review"
             }),
         )),
         PullsSubcommand::Diff(args) => Ok(PlannedCommand::tool_call(

@@ -960,6 +960,71 @@ fn pulls_merge_maps_to_pull_request_write_merge() {
 }
 
 #[test]
+fn pulls_reviews_maps_to_pull_request_read_get_reviews() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "pulls",
+        "reviews",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--index",
+        "12",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "pull_request_read",
+            serde_json::json!({
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "index": 12,
+                "method": "get_reviews"
+            })
+        )
+    );
+}
+
+#[test]
+fn pulls_review_get_maps_to_pull_request_read_get_review() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "pulls",
+        "review-get",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--index",
+        "12",
+        "--review-id",
+        "7",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "pull_request_read",
+            serde_json::json!({
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "index": 12,
+                "review_id": 7,
+                "method": "get_review"
+            })
+        )
+    );
+}
+
+#[test]
 fn top_level_help_includes_command_descriptions() {
     let help = render_help(Cli::command());
 
