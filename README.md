@@ -231,6 +231,9 @@ gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_
 - `gitea-cli --json issues comments --owner YOUR_ORG --repo YOUR_REPO --index 123`
   读取某个 Issue 的评论列表，方便查看讨论上下文。
 
+- `gitea-cli --json issues comments --owner YOUR_ORG --repo YOUR_REPO --index 123 --comment-id 88 --comment-id 99`
+  读取某个 Issue 的评论列表，并在本地仅保留指定评论，适合 agent 或脚本做定点提取。
+
 - `gitea-cli --json issues search --query "exact phrase" --owner YOUR_ORG`
   按关键字跨仓库搜索 Issue，可结合 `--owner`、`--state` 等参数缩小范围。
 
@@ -347,6 +350,12 @@ gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_
 - `gitea-cli --json pulls diff --owner YOUR_ORG --repo YOUR_REPO --index 12`
   读取单个 Pull Request 的 diff 内容，用于脚本化审查或上下文提取。
 
+- `gitea-cli --json pulls review-comments --owner YOUR_ORG --repo YOUR_REPO --index 12 --review-id 7`
+  读取某个 Pull Request review 下的评论列表，方便补齐评审上下文。
+
+- `gitea-cli --json pulls review-comments --owner YOUR_ORG --repo YOUR_REPO --index 12 --review-id 7 --comment-id 101`
+  读取某个 Pull Request review 下的评论列表，并在本地仅保留指定评论。
+
 ### Actions
 
 - `gitea-cli --json actions workflows --owner YOUR_ORG --repo YOUR_REPO`
@@ -412,10 +421,10 @@ gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_
   暂未单独封装文件读取、目录读取、创建文件、更新文件、删除文件等高层命令。
 
 - [x] Issue 读取与写操作
-  已提供 `issues list/get/comments/search/create/update/comment-add/comment-edit/labels/labels-add/label-remove/labels-replace/labels-clear`。
+  已提供 `issues list/get/comments/search/create/update/comment-add/comment-edit/labels/labels-add/label-remove/labels-replace/labels-clear`，其中 `issues comments` 支持通过可重复 `--comment-id` 过滤评论子集。
 
 - [x] Pull Request 主体读写操作
-  已提供 `pulls list/create/update/merge/get/diff`。
+  已提供 `pulls list/create/update/merge/get/diff/review-comments`。
 
 - [ ] Pull Request 评审与 reviewer 管理
   暂未单独封装增删 reviewer、review、dismiss 等高层命令，详见后续 issue 规划。

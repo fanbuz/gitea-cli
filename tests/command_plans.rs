@@ -1,5 +1,5 @@
 use clap::CommandFactory;
-use gitea_cli::cli::{Cli, PlannedCommand, plan_command};
+use gitea_cli::cli::{Cli, PlannedCommand, ResultFilter, plan_command};
 use std::fs;
 use tempfile::tempdir;
 
@@ -1004,6 +1004,16 @@ fn issues_help_includes_subcommand_descriptions() {
 }
 
 #[test]
+fn issues_comments_help_includes_comment_filter_option() {
+    let mut root = Cli::command();
+    let issues = find_subcommand(&mut root, "issues");
+    let comments_help = render_help(find_subcommand(issues, "comments").clone());
+
+    assert!(comments_help.contains("--comment-id <COMMENT_IDS>"));
+    assert!(comments_help.contains("评论 ID，可重复传入"));
+}
+
+#[test]
 fn issues_list_help_includes_option_descriptions() {
     let mut root = Cli::command();
     let issues = find_subcommand(&mut root, "issues");
@@ -1039,6 +1049,95 @@ fn pulls_help_includes_write_subcommands() {
         "merge",
         "合并 pull request"
     ));
+    assert!(help_has_command_description(
+        &pulls_help,
+        "review-comments",
+        "读取 pull request review 评论列表"
+    ));
+}
+
+#[test]
+fn pulls_review_comments_maps_to_pull_request_read_get_review_comments() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "pulls",
+        "review-comments",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--index",
+        "12",
+        "--review-id",
+        "7",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "pull_request_read",
+            serde_json::json!({
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "index": 12,
+                "review_id": 7,
+                "method": "get_review_comments"
+            })
+        )
+    );
+}
+
+#[test]
+fn pulls_review_comments_maps_with_comment_id_filter() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "pulls",
+        "review-comments",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--index",
+        "12",
+        "--review-id",
+        "7",
+        "--comment-id",
+        "101",
+        "--comment-id",
+        "102",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::filtered_tool_call(
+            "pull_request_read",
+            serde_json::json!({
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "index": 12,
+                "review_id": 7,
+                "method": "get_review_comments"
+            }),
+            ResultFilter::comment_ids(vec![101, 102]),
+        )
+    );
+}
+
+#[test]
+fn pulls_review_comments_help_includes_required_options() {
+    let mut root = Cli::command();
+    let pulls = find_subcommand(&mut root, "pulls");
+    let comments_help = render_help(find_subcommand(pulls, "review-comments").clone());
+
+    assert!(comments_help.contains("--review-id <REVIEW_ID>"));
+    assert!(comments_help.contains("--comment-id <COMMENT_IDS>"));
+    assert!(comments_help.contains("评论 ID，可重复传入"));
 }
 
 #[test]
@@ -1193,6 +1292,73 @@ fn issues_update_maps_to_issue_write_update() {
                 "state": "closed",
                 "remove_deadline": true
             })
+        )
+    );
+}
+
+#[test]
+fn issues_comments_maps_to_issue_read_get_comments() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "issues",
+        "comments",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--index",
+        "524",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "issue_read",
+            serde_json::json!({
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "index": 524,
+                "method": "get_comments"
+            })
+        )
+    );
+}
+
+#[test]
+fn issues_comments_maps_with_comment_id_filter() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "issues",
+        "comments",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--index",
+        "524",
+        "--comment-id",
+        "88",
+        "--comment-id",
+        "99",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::filtered_tool_call(
+            "issue_read",
+            serde_json::json!({
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "index": 524,
+                "method": "get_comments"
+            }),
+            ResultFilter::comment_ids(vec![88, 99]),
         )
     );
 }

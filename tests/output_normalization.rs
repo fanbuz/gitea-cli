@@ -1,4 +1,4 @@
-use gitea_cli::output::{normalize_tool_result, select_fields};
+use gitea_cli::output::{filter_comments_by_ids, normalize_tool_result, select_fields};
 
 #[test]
 fn parses_single_json_text_content() {
@@ -113,5 +113,53 @@ fn select_fields_supports_array_index_paths() {
                 ]
             }
         })
+    );
+}
+
+#[test]
+fn filter_comments_keeps_only_requested_ids() {
+    let value = serde_json::json!([
+        {"id": 88, "body": "first"},
+        {"id": 99, "body": "second"},
+        {"id": 100, "body": "third"}
+    ]);
+
+    let filtered = filter_comments_by_ids(&value, &[99, 88]).unwrap();
+
+    assert_eq!(
+        filtered,
+        serde_json::json!([
+            {"id": 88, "body": "first"},
+            {"id": 99, "body": "second"}
+        ])
+    );
+}
+
+#[test]
+fn filter_comments_returns_empty_array_when_no_ids_match() {
+    let value = serde_json::json!([
+        {"id": 88, "body": "first"}
+    ]);
+
+    let filtered = filter_comments_by_ids(&value, &[999]).unwrap();
+
+    assert_eq!(filtered, serde_json::json!([]));
+}
+
+#[test]
+fn filter_comments_deduplicates_requested_ids_by_membership() {
+    let value = serde_json::json!([
+        {"id": 88, "body": "first"},
+        {"id": 99, "body": "second"}
+    ]);
+
+    let filtered = filter_comments_by_ids(&value, &[88, 88, 99]).unwrap();
+
+    assert_eq!(
+        filtered,
+        serde_json::json!([
+            {"id": 88, "body": "first"},
+            {"id": 99, "body": "second"}
+        ])
     );
 }

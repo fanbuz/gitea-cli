@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 use anyhow::{Result, anyhow};
 use serde_json::{Map, Value};
 
@@ -53,6 +55,29 @@ pub fn select_fields(value: &Value, fields: &[String]) -> Result<Value> {
     }
 
     Ok(selected)
+}
+
+pub fn filter_comments_by_ids(value: &Value, comment_ids: &[u64]) -> Result<Value> {
+    let Some(items) = value.as_array() else {
+        return Err(anyhow!("评论过滤仅支持数组结果"));
+    };
+
+    if comment_ids.is_empty() {
+        return Ok(value.clone());
+    }
+
+    let requested = comment_ids.iter().copied().collect::<BTreeSet<_>>();
+    let filtered = items
+        .iter()
+        .filter(|item| {
+            item.get("id")
+                .and_then(Value::as_u64)
+                .is_some_and(|id| requested.contains(&id))
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+
+    Ok(Value::Array(filtered))
 }
 
 fn parse_field_path(field: &str) -> Result<Vec<&str>> {

@@ -6,10 +6,25 @@ use regex::Regex;
 use serde_json::{Map, Value, json};
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct ResultFilter {
+    pub comment_ids: Vec<u64>,
+}
+
+impl ResultFilter {
+    pub fn comment_ids(comment_ids: Vec<u64>) -> Self {
+        Self { comment_ids }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum PlannedCommand {
     Doctor,
     ToolsList,
-    ToolCall { tool: String, params: Value },
+    ToolCall {
+        tool: String,
+        params: Value,
+        filter: Option<ResultFilter>,
+    },
     Resolve { result: Value },
 }
 
@@ -18,6 +33,19 @@ impl PlannedCommand {
         Self::ToolCall {
             tool: tool.into(),
             params,
+            filter: None,
+        }
+    }
+
+    pub fn filtered_tool_call(
+        tool: impl Into<String>,
+        params: Value,
+        filter: ResultFilter,
+    ) -> Self {
+        Self::ToolCall {
+            tool: tool.into(),
+            params,
+            filter: Some(filter),
         }
     }
 
@@ -200,7 +228,7 @@ pub enum IssuesSubcommand {
     /// 读取单个 issue 详情
     Get(IssueTargetArgs),
     /// 读取单个 issue 的评论列表
-    Comments(IssueTargetArgs),
+    Comments(IssueCommentsArgs),
     /// 按关键词跨仓库搜索 issue 或 pull request
     Search(IssueSearchArgs),
     /// 创建 issue
@@ -315,6 +343,8 @@ pub enum PullsSubcommand {
     Get(PullTargetArgs),
     /// 读取单个 pull request 的 diff
     Diff(PullDiffArgs),
+    /// 读取 pull request review 评论列表
+    ReviewComments(PullReviewCommentsArgs),
 }
 
 #[derive(Debug, Clone, Args)]
@@ -876,6 +906,21 @@ pub struct IssueCommentEditArgs {
 }
 
 #[derive(Debug, Clone, Args)]
+pub struct CommentFilterArgs {
+    /// 评论 ID，可重复传入
+    #[arg(long = "comment-id")]
+    pub comment_ids: Vec<u64>,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct IssueCommentsArgs {
+    #[command(flatten)]
+    pub target: IssueTargetArgs,
+    #[command(flatten)]
+    pub filter: CommentFilterArgs,
+}
+
+#[derive(Debug, Clone, Args)]
 pub struct IssueLabelsArgs {
     #[command(flatten)]
     pub target: IssueTargetArgs,
@@ -1000,6 +1045,17 @@ pub struct PullDiffArgs {
     /// 是否包含二进制文件变更
     #[arg(long)]
     pub binary: bool,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct PullReviewCommentsArgs {
+    #[command(flatten)]
+    pub target: PullTargetArgs,
+    /// Review ID
+    #[arg(long = "review-id")]
+    pub review_id: u64,
+    #[command(flatten)]
+    pub filter: CommentFilterArgs,
 }
 
 #[derive(Debug, Clone, Args)]
@@ -1328,14 +1384,17 @@ fn plan_issues(command: &IssuesCommand) -> Result<PlannedCommand> {
                 "method": "get"
             }),
         )),
-        IssuesSubcommand::Comments(args) => Ok(PlannedCommand::tool_call(
-            "issue_read",
-            json!({
-                "owner": args.owner,
-                "repo": args.repo,
-                "index": args.index,
-                "method": "get_comments"
-            }),
+        IssuesSubcommand::Comments(args) => Ok(with_optional_comment_filter(
+            PlannedCommand::tool_call(
+                "issue_read",
+                json!({
+                    "owner": args.target.owner,
+                    "repo": args.target.repo,
+                    "index": args.target.index,
+                    "method": "get_comments"
+                }),
+            ),
+            &args.filter.comment_ids,
         )),
         IssuesSubcommand::Search(args) => {
             let mut params = Map::new();
@@ -1977,6 +2036,41 @@ fn plan_pulls(command: &PullsCommand) -> Result<PlannedCommand> {
                 "binary": args.binary
             }),
         )),
+        PullsSubcommand::ReviewComments(args) => Ok(with_optional_comment_filter(
+            PlannedCommand::tool_call(
+                "pull_request_read",
+                json!({
+                    "owner": args.target.owner,
+                    "repo": args.target.repo,
+                    "index": args.target.index,
+                    "review_id": args.review_id,
+                    "method": "get_review_comments"
+                }),
+            ),
+            &args.filter.comment_ids,
+        )),
+    }
+}
+
+fn with_optional_comment_filter(
+    planned: PlannedCommand,
+    comment_ids: &[u64],
+) -> PlannedCommand {
+    if comment_ids.is_empty() {
+        return planned;
+    }
+
+    match planned {
+        PlannedCommand::ToolCall {
+            tool,
+            params,
+            filter: None,
+        } => PlannedCommand::filtered_tool_call(
+            tool,
+            params,
+            ResultFilter::comment_ids(comment_ids.to_vec()),
+        ),
+        other => other,
     }
 }
 

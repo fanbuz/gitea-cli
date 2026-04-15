@@ -1,15 +1,15 @@
 use std::ffi::OsString;
 
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use clap::error::ErrorKind;
 use serde_json::{Value, json};
 use which::which;
 
 use crate::{
-    cli::{Cli, PlannedCommand, plan_command},
+    cli::{Cli, PlannedCommand, ResultFilter, plan_command},
     config::{default_codex_config_path, load_gitea_server_config},
     mcp::McpSession,
-    output::select_fields,
+    output::{filter_comments_by_ids, select_fields},
 };
 
 pub fn run<I, T>(args: I) -> i32
@@ -88,15 +88,20 @@ fn run_cli(cli: &Cli) -> Result<Value> {
                 "result": result
             }))
         }
-        PlannedCommand::ToolCall { tool, params } => {
+        PlannedCommand::ToolCall {
+            tool,
+            params,
+            filter,
+        } => {
             let mut session = start_session()?;
             let result = session.call_tool(&tool, params)?;
-            Ok(json!({
+            let wrapped = json!({
                 "ok": true,
                 "kind": "tool_call",
                 "tool": tool,
                 "result": result
-            }))
+            });
+            apply_result_filter(&wrapped, filter.as_ref())
         }
         PlannedCommand::Resolve { result } => Ok(json!({
             "ok": true,
@@ -104,6 +109,22 @@ fn run_cli(cli: &Cli) -> Result<Value> {
             "result": result
         })),
     }
+}
+
+fn apply_result_filter(value: &Value, filter: Option<&ResultFilter>) -> Result<Value> {
+    let Some(filter) = filter else {
+        return Ok(value.clone());
+    };
+
+    let mut next = value.clone();
+    let parsed = next
+        .get_mut("result")
+        .and_then(Value::as_object_mut)
+        .and_then(|result| result.get_mut("parsed"))
+        .ok_or_else(|| anyhow!("过滤评论失败: 找不到 result.parsed"))?;
+
+    *parsed = filter_comments_by_ids(parsed, &filter.comment_ids)?;
+    Ok(next)
 }
 
 fn start_session() -> Result<McpSession> {
@@ -231,4 +252,68 @@ fn print_output(value: &Value, compact: bool) {
     .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"render json failed\"}".to_string());
 
     println!("{rendered}");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::cli::{Command, ResultFilter};
+
+    #[test]
+    fn apply_result_filter_keeps_matching_comments_before_fields() {
+        let value = serde_json::json!({
+            "ok": true,
+            "kind": "tool_call",
+            "result": {
+                "parsed": [
+                    {"id": 88, "body": "first", "user": {"login": "fanbuz"}},
+                    {"id": 99, "body": "second", "user": {"login": "codex"}}
+                ]
+            }
+        });
+
+        let filtered =
+            apply_result_filter(&value, Some(&ResultFilter::comment_ids(vec![99]))).unwrap();
+        let shaped = shape_output(
+            &filtered,
+            &Cli {
+                json: true,
+                fields: vec![
+                    "result.parsed.0.id".to_string(),
+                    "result.parsed.0.user.login".to_string(),
+                ],
+                command: Command::Doctor,
+            },
+        )
+        .unwrap();
+
+        assert_eq!(
+            shaped,
+            serde_json::json!({
+                "result": {
+                    "parsed": [
+                        {"id": 99, "user": {"login": "codex"}}
+                    ]
+                }
+            })
+        );
+    }
+
+    #[test]
+    fn apply_result_filter_returns_empty_array_when_no_comment_matches() {
+        let value = serde_json::json!({
+            "ok": true,
+            "kind": "tool_call",
+            "result": {
+                "parsed": [
+                    {"id": 88, "body": "first"}
+                ]
+            }
+        });
+
+        let filtered =
+            apply_result_filter(&value, Some(&ResultFilter::comment_ids(vec![999]))).unwrap();
+
+        assert_eq!(filtered["result"]["parsed"], serde_json::json!([]));
+    }
 }
