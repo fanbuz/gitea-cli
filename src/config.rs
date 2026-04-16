@@ -22,7 +22,7 @@ struct CodexConfig {
 
 #[derive(Debug, Deserialize)]
 struct McpServer {
-    command: String,
+    command: Option<String>,
     #[serde(default)]
     args: Vec<String>,
     #[serde(default)]
@@ -44,12 +44,17 @@ pub fn load_gitea_server_config(path: &Path) -> Result<GiteaServerConfig> {
         .get("gitea")
         .context("未找到 [mcp_servers.gitea] 配置")?;
 
-    if server.command.trim().is_empty() {
+    let command = server
+        .command
+        .as_deref()
+        .context("当前 gitea MCP 配置缺少 command，暂仅支持 stdio 类型 server")?;
+
+    if command.trim().is_empty() {
         bail!("gitea MCP server command 不能为空");
     }
 
     Ok(GiteaServerConfig {
-        command: server.command.clone(),
+        command: command.to_string(),
         args: server.args.clone(),
         env: server.env.clone(),
     })
