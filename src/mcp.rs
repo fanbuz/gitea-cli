@@ -116,7 +116,7 @@ impl McpSession {
                 "arguments": arguments
             }),
         )?;
-        Ok(normalize_tool_result(result))
+        normalize_tool_call_result(result)
     }
 
     fn initialize(&mut self) -> Result<()> {
@@ -183,6 +183,68 @@ impl McpSession {
             .write_all(&encode_message(payload))
             .context("写入 MCP 请求失败")?;
         self.writer.flush().context("刷新 MCP 请求失败")
+    }
+}
+
+fn normalize_tool_call_result(result: Value) -> Result<Value> {
+    if result
+        .get("isError")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
+        bail!("MCP 工具返回错误: {}", summarize_tool_error(&result));
+    }
+
+    Ok(normalize_tool_result(result))
+}
+
+fn summarize_tool_error(result: &Value) -> String {
+    result
+        .get("content")
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|item| item.get("text").and_then(Value::as_str))
+                .collect::<Vec<_>>()
+                .join("\n")
+        })
+        .filter(|text| !text.trim().is_empty())
+        .unwrap_or_else(|| result.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::normalize_tool_call_result;
+
+    #[test]
+    fn tool_call_result_with_is_error_returns_error() {
+        let result = serde_json::json!({
+            "isError": true,
+            "content": [{
+                "type": "text",
+                "text": "issue_number is required"
+            }]
+        });
+
+        let error = normalize_tool_call_result(result).unwrap_err();
+
+        assert!(error.to_string().contains("MCP 工具返回错误"));
+        assert!(error.to_string().contains("issue_number is required"));
+    }
+
+    #[test]
+    fn tool_call_result_without_is_error_is_normalized() {
+        let result = serde_json::json!({
+            "content": [{
+                "type": "text",
+                "text": "{\"number\":524}"
+            }]
+        });
+
+        let normalized = normalize_tool_call_result(result).unwrap();
+
+        assert_eq!(normalized["parsed"], serde_json::json!({"number": 524}));
     }
 }
 

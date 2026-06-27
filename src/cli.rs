@@ -1465,7 +1465,7 @@ pub fn plan_command(cli: &Cli) -> Result<PlannedCommand> {
                 "get_user_orgs",
                 json!({
                     "page": args.page,
-                    "perPage": args.page_size
+                    "per_page": args.page_size
                 }),
             )),
         },
@@ -1492,7 +1492,7 @@ fn plan_repos(command: &ReposCommand) -> Result<PlannedCommand> {
                     json!({
                         "org": owner,
                         "page": args.page.page,
-                        "pageSize": args.page.page_size
+                        "per_page": args.page.page_size
                     }),
                 ))
             } else {
@@ -1500,7 +1500,7 @@ fn plan_repos(command: &ReposCommand) -> Result<PlannedCommand> {
                     "list_my_repos",
                     json!({
                         "page": args.page.page,
-                        "perPage": args.page.page_size
+                        "per_page": args.page.page_size
                     }),
                 ))
             }
@@ -1511,7 +1511,7 @@ fn plan_repos(command: &ReposCommand) -> Result<PlannedCommand> {
                 "owner": args.target.owner,
                 "repo": args.target.repo,
                 "page": args.page.page,
-                "perPage": args.page.page_size
+                "per_page": args.page.page_size
             }),
         )),
         ReposSubcommand::BranchCreate(args) => Ok(PlannedCommand::tool_call(
@@ -1542,7 +1542,7 @@ fn plan_repos(command: &ReposCommand) -> Result<PlannedCommand> {
                 "tree_sha": args.git_ref,
                 "recursive": args.recursive,
                 "page": args.page,
-                "perPage": args.page_size
+                "per_page": args.page_size
             }),
         )),
         ReposSubcommand::Dir(args) => Ok(PlannedCommand::tool_call(
@@ -1551,7 +1551,7 @@ fn plan_repos(command: &ReposCommand) -> Result<PlannedCommand> {
                 "owner": args.target.owner,
                 "repo": args.target.repo,
                 "ref": args.git_ref,
-                "filePath": args.path
+                "path": args.path
             }),
         )),
         ReposSubcommand::File(args) => Ok(PlannedCommand::tool_call(
@@ -1560,7 +1560,7 @@ fn plan_repos(command: &ReposCommand) -> Result<PlannedCommand> {
                 "owner": args.target.owner,
                 "repo": args.target.repo,
                 "ref": args.git_ref,
-                "filePath": args.path,
+                "path": args.path,
                 "withLines": args.with_lines
             }),
         )),
@@ -1570,7 +1570,7 @@ fn plan_repos(command: &ReposCommand) -> Result<PlannedCommand> {
             params.insert("owner".to_string(), json!(args.target.owner));
             params.insert("repo".to_string(), json!(args.target.repo));
             params.insert("branch_name".to_string(), json!(args.branch_name));
-            params.insert("filePath".to_string(), json!(args.path));
+            params.insert("path".to_string(), json!(args.path));
             params.insert("content".to_string(), json!(content));
             params.insert("message".to_string(), json!(args.message));
             insert_optional_string(
@@ -1593,7 +1593,7 @@ fn plan_repos(command: &ReposCommand) -> Result<PlannedCommand> {
             params.insert("owner".to_string(), json!(args.write.target.owner));
             params.insert("repo".to_string(), json!(args.write.target.repo));
             params.insert("branch_name".to_string(), json!(args.write.branch_name));
-            params.insert("filePath".to_string(), json!(args.write.path));
+            params.insert("path".to_string(), json!(args.write.path));
             params.insert("content".to_string(), json!(content));
             params.insert("message".to_string(), json!(args.write.message));
             params.insert("sha".to_string(), json!(sha));
@@ -1619,7 +1619,7 @@ fn plan_repos(command: &ReposCommand) -> Result<PlannedCommand> {
                     "owner": args.target.owner,
                     "repo": args.target.repo,
                     "branch_name": args.branch_name,
-                    "filePath": args.path,
+                    "path": args.path,
                     "message": args.message,
                     "sha": sha
                 }),
@@ -1636,7 +1636,7 @@ fn plan_issues(command: &IssuesCommand) -> Result<PlannedCommand> {
             params.insert("repo".to_string(), json!(args.repo));
             params.insert("state".to_string(), json!(args.state));
             params.insert("page".to_string(), json!(args.page.page));
-            params.insert("perPage".to_string(), json!(args.page.page_size));
+            params.insert("per_page".to_string(), json!(args.page.page_size));
             if !args.labels.is_empty() {
                 params.insert("labels".to_string(), json!(args.labels));
             }
@@ -1652,7 +1652,7 @@ fn plan_issues(command: &IssuesCommand) -> Result<PlannedCommand> {
             json!({
                 "owner": args.owner,
                 "repo": args.repo,
-                "index": args.index,
+                "issue_number": args.index,
                 "method": "get"
             }),
         )),
@@ -1662,7 +1662,7 @@ fn plan_issues(command: &IssuesCommand) -> Result<PlannedCommand> {
                 json!({
                     "owner": args.target.owner,
                     "repo": args.target.repo,
-                    "index": args.target.index,
+                    "issue_number": args.target.index,
                     "method": "get_comments"
                 }),
             ),
@@ -1673,7 +1673,7 @@ fn plan_issues(command: &IssuesCommand) -> Result<PlannedCommand> {
             params.insert("query".to_string(), json!(args.query));
             params.insert("type".to_string(), json!("issues"));
             params.insert("page".to_string(), json!(args.page));
-            params.insert("perPage".to_string(), json!(args.page_size));
+            params.insert("per_page".to_string(), json!(args.page_size));
             insert_optional_string(&mut params, "owner", args.owner.as_deref());
             insert_optional_string(&mut params, "state", args.state.as_deref());
             if !args.labels.is_empty() {
@@ -1706,7 +1706,7 @@ fn plan_issues(command: &IssuesCommand) -> Result<PlannedCommand> {
             params.insert("method".to_string(), json!("update"));
             params.insert("owner".to_string(), json!(args.target.owner));
             params.insert("repo".to_string(), json!(args.target.repo));
-            params.insert("index".to_string(), json!(args.target.index));
+            params.insert("issue_number".to_string(), json!(args.target.index));
             insert_optional_string(&mut params, "title", args.title.as_deref());
             insert_optional_string(&mut params, "body", args.body.as_deref());
             insert_optional_string(&mut params, "state", args.state.as_deref());
@@ -1729,7 +1729,7 @@ fn plan_issues(command: &IssuesCommand) -> Result<PlannedCommand> {
                 "method": "add_comment",
                 "owner": args.target.owner,
                 "repo": args.target.repo,
-                "index": args.target.index,
+                "issue_number": args.target.index,
                 "body": args.body
             }),
         )),
@@ -1739,7 +1739,7 @@ fn plan_issues(command: &IssuesCommand) -> Result<PlannedCommand> {
                 "method": "edit_comment",
                 "owner": args.target.owner,
                 "repo": args.target.repo,
-                "index": args.target.index,
+                "issue_number": args.target.index,
                 "commentID": args.comment_id,
                 "body": args.body
             }),
@@ -1749,7 +1749,7 @@ fn plan_issues(command: &IssuesCommand) -> Result<PlannedCommand> {
             json!({
                 "owner": args.owner,
                 "repo": args.repo,
-                "index": args.index,
+                "issue_number": args.index,
                 "method": "get_labels"
             }),
         )),
@@ -1759,7 +1759,7 @@ fn plan_issues(command: &IssuesCommand) -> Result<PlannedCommand> {
                 "method": "add_labels",
                 "owner": args.target.owner,
                 "repo": args.target.repo,
-                "index": args.target.index,
+                "issue_number": args.target.index,
                 "labels": args.label_ids
             }),
         )),
@@ -1771,7 +1771,7 @@ fn plan_issues(command: &IssuesCommand) -> Result<PlannedCommand> {
                     "method": "remove_label",
                     "owner": args.target.owner,
                     "repo": args.target.repo,
-                    "index": args.target.index,
+                    "issue_number": args.target.index,
                     "label_id": args.label_id
                 }),
             ))
@@ -1782,7 +1782,7 @@ fn plan_issues(command: &IssuesCommand) -> Result<PlannedCommand> {
                 "method": "replace_labels",
                 "owner": args.target.owner,
                 "repo": args.target.repo,
-                "index": args.target.index,
+                "issue_number": args.target.index,
                 "labels": args.label_ids
             }),
         )),
@@ -1794,7 +1794,7 @@ fn plan_issues(command: &IssuesCommand) -> Result<PlannedCommand> {
                     "method": "clear_labels",
                     "owner": args.target.owner,
                     "repo": args.target.repo,
-                    "index": args.target.index
+                    "issue_number": args.target.index
                 }),
             ))
         }
@@ -1810,9 +1810,9 @@ fn plan_issue_time(command: &IssueTimeCommand) -> Result<PlannedCommand> {
                 "method": "list_issue_times",
                 "owner": args.target.owner,
                 "repo": args.target.repo,
-                "index": args.target.index,
+                "issue_number": args.target.index,
                 "page": args.page.page,
-                "perPage": args.page.page_size
+                "per_page": args.page.page_size
             }),
         )),
         IssueTimeSubcommand::Start(args) => Ok(PlannedCommand::tool_call(
@@ -1821,7 +1821,7 @@ fn plan_issue_time(command: &IssueTimeCommand) -> Result<PlannedCommand> {
                 "method": "start_stopwatch",
                 "owner": args.owner,
                 "repo": args.repo,
-                "index": args.index
+                "issue_number": args.index
             }),
         )),
         IssueTimeSubcommand::Stop(args) => Ok(PlannedCommand::tool_call(
@@ -1830,7 +1830,7 @@ fn plan_issue_time(command: &IssueTimeCommand) -> Result<PlannedCommand> {
                 "method": "stop_stopwatch",
                 "owner": args.owner,
                 "repo": args.repo,
-                "index": args.index
+                "issue_number": args.index
             }),
         )),
         IssueTimeSubcommand::ResetStopwatch(args) => {
@@ -1841,7 +1841,7 @@ fn plan_issue_time(command: &IssueTimeCommand) -> Result<PlannedCommand> {
                     "method": "delete_stopwatch",
                     "owner": args.target.owner,
                     "repo": args.target.repo,
-                    "index": args.target.index
+                    "issue_number": args.target.index
                 }),
             ))
         }
@@ -1851,7 +1851,7 @@ fn plan_issue_time(command: &IssueTimeCommand) -> Result<PlannedCommand> {
                 "method": "add_time",
                 "owner": args.target.owner,
                 "repo": args.target.repo,
-                "index": args.target.index,
+                "issue_number": args.target.index,
                 "time": args.seconds
             }),
         )),
@@ -1863,7 +1863,7 @@ fn plan_issue_time(command: &IssueTimeCommand) -> Result<PlannedCommand> {
                     "method": "delete_time",
                     "owner": args.target.owner,
                     "repo": args.target.repo,
-                    "index": args.target.index,
+                    "issue_number": args.target.index,
                     "id": args.id
                 }),
             ))
@@ -1880,7 +1880,7 @@ fn plan_labels(command: &LabelsCommand) -> Result<PlannedCommand> {
                 "owner": args.target.owner,
                 "repo": args.target.repo,
                 "page": args.page.page,
-                "perPage": args.page.page_size
+                "per_page": args.page.page_size
             }),
         )),
         LabelsSubcommand::RepoGet(args) => Ok(PlannedCommand::tool_call(
@@ -1941,7 +1941,7 @@ fn plan_labels(command: &LabelsCommand) -> Result<PlannedCommand> {
                 "method": "list_org_labels",
                 "org": args.org,
                 "page": args.page.page,
-                "perPage": args.page.page_size
+                "per_page": args.page.page_size
             }),
         )),
         LabelsSubcommand::OrgCreate(args) => {
@@ -1995,7 +1995,7 @@ fn plan_milestones(command: &MilestonesCommand) -> Result<PlannedCommand> {
             params.insert("owner".to_string(), json!(args.target.owner));
             params.insert("repo".to_string(), json!(args.target.repo));
             params.insert("page".to_string(), json!(args.page.page));
-            params.insert("perPage".to_string(), json!(args.page.page_size));
+            params.insert("per_page".to_string(), json!(args.page.page_size));
             insert_optional_string(&mut params, "state", args.state.as_deref());
             insert_optional_string(&mut params, "name", args.name.as_deref());
             Ok(PlannedCommand::tool_call(
@@ -2063,7 +2063,7 @@ fn plan_releases(command: &ReleasesCommand) -> Result<PlannedCommand> {
                 "owner": args.target.owner,
                 "repo": args.target.repo,
                 "page": args.page.page,
-                "perPage": args.page.page_size
+                "per_page": args.page.page_size
             }),
         )),
         ReleasesSubcommand::Latest(args) => Ok(PlannedCommand::tool_call(
@@ -2122,7 +2122,7 @@ fn plan_tags(command: &TagsCommand) -> Result<PlannedCommand> {
                 "owner": args.target.owner,
                 "repo": args.target.repo,
                 "page": args.page.page,
-                "perPage": args.page.page_size
+                "per_page": args.page.page_size
             }),
         )),
         TagsSubcommand::Get(args) => Ok(PlannedCommand::tool_call(
@@ -2166,7 +2166,7 @@ fn plan_commits(command: &CommitsCommand) -> Result<PlannedCommand> {
             params.insert("owner".to_string(), json!(args.owner));
             params.insert("repo".to_string(), json!(args.repo));
             params.insert("page".to_string(), json!(args.page.page));
-            params.insert("perPage".to_string(), json!(args.page.page_size));
+            params.insert("per_page".to_string(), json!(args.page.page_size));
             insert_optional_string(&mut params, "sha", args.sha.as_deref());
             insert_optional_string(&mut params, "path", args.path.as_deref());
             Ok(PlannedCommand::tool_call(
@@ -2193,7 +2193,7 @@ fn plan_pulls(command: &PullsCommand) -> Result<PlannedCommand> {
             params.insert("repo".to_string(), json!(args.repo));
             params.insert("state".to_string(), json!(args.state));
             params.insert("page".to_string(), json!(args.page.page));
-            params.insert("perPage".to_string(), json!(args.page.page_size));
+            params.insert("per_page".to_string(), json!(args.page.page_size));
             if let Some(sort) = &args.sort {
                 params.insert("sort".to_string(), json!(sort));
             }
@@ -2229,7 +2229,7 @@ fn plan_pulls(command: &PullsCommand) -> Result<PlannedCommand> {
             params.insert("method".to_string(), json!("update"));
             params.insert("owner".to_string(), json!(args.target.owner));
             params.insert("repo".to_string(), json!(args.target.repo));
-            params.insert("index".to_string(), json!(args.target.index));
+            params.insert("pull_number".to_string(), json!(args.target.index));
             insert_optional_string(&mut params, "title", args.title.as_deref());
             insert_optional_string(&mut params, "body", args.body.as_deref());
             insert_optional_string(&mut params, "state", args.state.as_deref());
@@ -2261,7 +2261,7 @@ fn plan_pulls(command: &PullsCommand) -> Result<PlannedCommand> {
             params.insert("method".to_string(), json!("merge"));
             params.insert("owner".to_string(), json!(args.target.owner));
             params.insert("repo".to_string(), json!(args.target.repo));
-            params.insert("index".to_string(), json!(args.target.index));
+            params.insert("pull_number".to_string(), json!(args.target.index));
             if let Some(merge_style) = &args.merge_style {
                 params.insert("merge_style".to_string(), json!(merge_style.as_api_value()));
             }
@@ -2291,7 +2291,7 @@ fn plan_pulls(command: &PullsCommand) -> Result<PlannedCommand> {
             json!({
                 "owner": args.owner,
                 "repo": args.repo,
-                "index": args.index,
+                "pull_number": args.index,
                 "method": "get"
             }),
         )),
@@ -2300,7 +2300,7 @@ fn plan_pulls(command: &PullsCommand) -> Result<PlannedCommand> {
             json!({
                 "owner": args.owner,
                 "repo": args.repo,
-                "index": args.index,
+                "pull_number": args.index,
                 "method": "get_reviews"
             }),
         )),
@@ -2309,7 +2309,7 @@ fn plan_pulls(command: &PullsCommand) -> Result<PlannedCommand> {
             json!({
                 "owner": args.target.owner,
                 "repo": args.target.repo,
-                "index": args.target.index,
+                "pull_number": args.target.index,
                 "review_id": args.review_id,
                 "method": "get_review"
             }),
@@ -2320,7 +2320,7 @@ fn plan_pulls(command: &PullsCommand) -> Result<PlannedCommand> {
                 "method": "add_reviewers",
                 "owner": args.target.owner,
                 "repo": args.target.repo,
-                "index": args.target.index,
+                "pull_number": args.target.index,
                 "reviewers": args.reviewers
             }),
         )),
@@ -2330,7 +2330,7 @@ fn plan_pulls(command: &PullsCommand) -> Result<PlannedCommand> {
                 "method": "remove_reviewers",
                 "owner": args.target.owner,
                 "repo": args.target.repo,
-                "index": args.target.index,
+                "pull_number": args.target.index,
                 "reviewers": args.reviewers
             }),
         )),
@@ -2339,7 +2339,7 @@ fn plan_pulls(command: &PullsCommand) -> Result<PlannedCommand> {
             params.insert("method".to_string(), json!("create"));
             params.insert("owner".to_string(), json!(args.target.owner));
             params.insert("repo".to_string(), json!(args.target.repo));
-            params.insert("index".to_string(), json!(args.target.index));
+            params.insert("pull_number".to_string(), json!(args.target.index));
             params.insert("body".to_string(), json!(args.body));
             insert_optional_string(&mut params, "commit_id", args.commit_id.as_deref());
             Ok(PlannedCommand::tool_call(
@@ -2353,7 +2353,7 @@ fn plan_pulls(command: &PullsCommand) -> Result<PlannedCommand> {
                 "method": "submit",
                 "owner": args.target.target.owner,
                 "repo": args.target.target.repo,
-                "index": args.target.target.index,
+                "pull_number": args.target.target.index,
                 "review_id": args.target.review_id,
                 "state": args.state.as_api_value(),
                 "body": args.body
@@ -2367,7 +2367,7 @@ fn plan_pulls(command: &PullsCommand) -> Result<PlannedCommand> {
                     "method": "delete",
                     "owner": args.target.target.owner,
                     "repo": args.target.target.repo,
-                    "index": args.target.target.index,
+                    "pull_number": args.target.target.index,
                     "review_id": args.target.review_id
                 }),
             ))
@@ -2378,7 +2378,7 @@ fn plan_pulls(command: &PullsCommand) -> Result<PlannedCommand> {
                 "method": "dismiss",
                 "owner": args.target.target.owner,
                 "repo": args.target.target.repo,
-                "index": args.target.target.index,
+                "pull_number": args.target.target.index,
                 "review_id": args.target.review_id,
                 "message": args.message
             }),
@@ -2388,7 +2388,7 @@ fn plan_pulls(command: &PullsCommand) -> Result<PlannedCommand> {
             json!({
                 "owner": args.target.owner,
                 "repo": args.target.repo,
-                "index": args.target.index,
+                "pull_number": args.target.index,
                 "method": "get_diff",
                 "binary": args.binary
             }),
@@ -2399,7 +2399,7 @@ fn plan_pulls(command: &PullsCommand) -> Result<PlannedCommand> {
                 json!({
                     "owner": args.target.owner,
                     "repo": args.target.repo,
-                    "index": args.target.index,
+                    "pull_number": args.target.index,
                     "review_id": args.review_id,
                     "method": "get_review_comments"
                 }),
@@ -2444,7 +2444,7 @@ fn plan_actions(command: &ActionsCommand) -> Result<PlannedCommand> {
             params.insert("owner".to_string(), json!(args.target.owner));
             params.insert("repo".to_string(), json!(args.target.repo));
             params.insert("page".to_string(), json!(args.page.page));
-            params.insert("perPage".to_string(), json!(args.page.page_size));
+            params.insert("per_page".to_string(), json!(args.page.page_size));
             insert_optional_string(&mut params, "status", args.status.as_deref());
             Ok(PlannedCommand::tool_call(
                 "actions_run_read",
@@ -2464,7 +2464,7 @@ fn plan_actions(command: &ActionsCommand) -> Result<PlannedCommand> {
             params.insert("owner".to_string(), json!(args.target.owner));
             params.insert("repo".to_string(), json!(args.target.repo));
             params.insert("page".to_string(), json!(args.page.page));
-            params.insert("perPage".to_string(), json!(args.page.page_size));
+            params.insert("per_page".to_string(), json!(args.page.page_size));
             if let Some(run_id) = args.run_id {
                 params.insert("run_id".to_string(), json!(run_id));
             }

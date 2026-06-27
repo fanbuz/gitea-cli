@@ -43,7 +43,7 @@ fn issue_get_maps_to_issue_read() {
             serde_json::json!({
                 "owner": "XINTUKJ",
                 "repo": "simba-ehr-frontend",
-                "index": 524,
+                "issue_number": 524,
                 "method": "get"
             })
         )
@@ -285,7 +285,7 @@ fn repos_list_with_owner_uses_org_repos() {
             serde_json::json!({
                 "org": "XINTUKJ",
                 "page": 2,
-                "pageSize": 50
+                "per_page": 50
             })
         )
     );
@@ -351,7 +351,7 @@ fn repos_dir_maps_to_get_dir_contents() {
                 "owner": "XINTUKJ",
                 "repo": "simba-ehr-frontend",
                 "ref": "develop",
-                "filePath": "docs"
+                "path": "docs"
             })
         )
     );
@@ -380,7 +380,7 @@ fn repos_dir_defaults_to_repo_root() {
                 "owner": "XINTUKJ",
                 "repo": "simba-ehr-frontend",
                 "ref": "main",
-                "filePath": ""
+                "path": ""
             })
         )
     );
@@ -414,7 +414,7 @@ fn repos_file_maps_to_get_file_contents_with_lines() {
                 "owner": "XINTUKJ",
                 "repo": "simba-ehr-frontend",
                 "ref": "main",
-                "filePath": "README.md",
+                "path": "README.md",
                 "withLines": true
             })
         )
@@ -454,7 +454,7 @@ fn repos_file_create_maps_inline_content() {
                 "owner": "XINTUKJ",
                 "repo": "simba-ehr-frontend",
                 "branch_name": "main",
-                "filePath": "docs/guide.md",
+                "path": "docs/guide.md",
                 "content": "# guide",
                 "message": "create guide",
                 "new_branch_name": "feature/add-guide"
@@ -497,7 +497,7 @@ fn repos_file_create_reads_content_file() {
                 "owner": "XINTUKJ",
                 "repo": "simba-ehr-frontend",
                 "branch_name": "main",
-                "filePath": "docs/guide.md",
+                "path": "docs/guide.md",
                 "content": "# from file",
                 "message": "create guide"
             })
@@ -590,7 +590,7 @@ fn repos_file_update_maps_to_create_or_update_file() {
                 "owner": "XINTUKJ",
                 "repo": "simba-ehr-frontend",
                 "branch_name": "main",
-                "filePath": "docs/guide.md",
+                "path": "docs/guide.md",
                 "content": "# guide v2",
                 "message": "update guide",
                 "sha": "abc123",
@@ -678,7 +678,7 @@ fn repos_file_delete_maps_when_confirmed() {
                 "owner": "XINTUKJ",
                 "repo": "simba-ehr-frontend",
                 "branch_name": "main",
-                "filePath": "docs/guide.md",
+                "path": "docs/guide.md",
                 "sha": "abc123",
                 "message": "delete guide"
             })
@@ -793,7 +793,7 @@ fn releases_list_maps_to_list_releases() {
                 "owner": "XINTUKJ",
                 "repo": "simba-ehr-frontend",
                 "page": 3,
-                "perPage": 25
+                "per_page": 25
             })
         )
     );
@@ -1067,7 +1067,7 @@ fn tags_list_maps_to_list_tags() {
                 "owner": "XINTUKJ",
                 "repo": "simba-ehr-frontend",
                 "page": 2,
-                "perPage": 30
+                "per_page": 30
             })
         )
     );
@@ -1106,7 +1106,7 @@ fn commits_list_maps_to_list_commits() {
                 "sha": "main",
                 "path": "src/app.rs",
                 "page": 2,
-                "perPage": 40
+                "per_page": 40
             })
         )
     );
@@ -1236,7 +1236,7 @@ fn pulls_update_maps_to_pull_request_write_update() {
                 "method": "update",
                 "owner": "XINTUKJ",
                 "repo": "simba-ehr-frontend",
-                "index": 12,
+                "pull_number": 12,
                 "title": "Updated title",
                 "state": "closed",
                 "base": "release/0.0.7",
@@ -1288,7 +1288,7 @@ fn pulls_merge_maps_to_pull_request_write_merge() {
                 "method": "merge",
                 "owner": "XINTUKJ",
                 "repo": "simba-ehr-frontend",
-                "index": 12,
+                "pull_number": 12,
                 "merge_style": "squash",
                 "title": "Merge PR",
                 "message": "merge details",
@@ -1325,7 +1325,7 @@ fn pulls_reviews_maps_to_pull_request_read_get_reviews() {
             serde_json::json!({
                 "owner": "XINTUKJ",
                 "repo": "simba-ehr-frontend",
-                "index": 12,
+                "pull_number": 12,
                 "method": "get_reviews"
             })
         )
@@ -1358,7 +1358,7 @@ fn pulls_review_get_maps_to_pull_request_read_get_review() {
             serde_json::json!({
                 "owner": "XINTUKJ",
                 "repo": "simba-ehr-frontend",
-                "index": 12,
+                "pull_number": 12,
                 "review_id": 7,
                 "method": "get_review"
             })
@@ -1489,7 +1489,7 @@ fn pulls_review_comments_maps_to_pull_request_read_get_review_comments() {
             serde_json::json!({
                 "owner": "XINTUKJ",
                 "repo": "simba-ehr-frontend",
-                "index": 12,
+                "pull_number": 12,
                 "review_id": 7,
                 "method": "get_review_comments"
             })
@@ -1527,7 +1527,7 @@ fn pulls_review_comments_maps_with_comment_id_filter() {
             serde_json::json!({
                 "owner": "XINTUKJ",
                 "repo": "simba-ehr-frontend",
-                "index": 12,
+                "pull_number": 12,
                 "review_id": 7,
                 "method": "get_review_comments"
             }),
@@ -1645,7 +1645,7 @@ fn pulls_reviewers_add_maps_to_pull_request_write_add_reviewers() {
                 "method": "add_reviewers",
                 "owner": "XINTUKJ",
                 "repo": "simba-ehr-frontend",
-                "index": 12,
+                "pull_number": 12,
                 "reviewers": ["alice", "bob"]
             })
         )
@@ -1679,7 +1679,7 @@ fn pulls_reviewers_remove_maps_to_pull_request_write_remove_reviewers() {
                 "method": "remove_reviewers",
                 "owner": "XINTUKJ",
                 "repo": "simba-ehr-frontend",
-                "index": 12,
+                "pull_number": 12,
                 "reviewers": ["alice"]
             })
         )
@@ -1715,7 +1715,7 @@ fn pulls_review_create_maps_to_pull_request_review_write_create() {
                 "method": "create",
                 "owner": "XINTUKJ",
                 "repo": "simba-ehr-frontend",
-                "index": 12,
+                "pull_number": 12,
                 "commit_id": "abcdef123456",
                 "body": "needs review"
             })
@@ -1754,7 +1754,7 @@ fn pulls_review_submit_maps_to_pull_request_review_write_submit() {
                 "method": "submit",
                 "owner": "XINTUKJ",
                 "repo": "simba-ehr-frontend",
-                "index": 12,
+                "pull_number": 12,
                 "review_id": 7,
                 "state": "APPROVED",
                 "body": "looks good"
@@ -1813,7 +1813,7 @@ fn pulls_review_delete_maps_when_confirmed() {
                 "method": "delete",
                 "owner": "XINTUKJ",
                 "repo": "simba-ehr-frontend",
-                "index": 12,
+                "pull_number": 12,
                 "review_id": 7
             })
         )
@@ -1849,7 +1849,7 @@ fn pulls_review_dismiss_maps_to_pull_request_review_write_dismiss() {
                 "method": "dismiss",
                 "owner": "XINTUKJ",
                 "repo": "simba-ehr-frontend",
-                "index": 12,
+                "pull_number": 12,
                 "review_id": 7,
                 "message": "stale review"
             })
@@ -2012,7 +2012,7 @@ fn issues_update_maps_to_issue_write_update() {
                 "method": "update",
                 "owner": "XINTUKJ",
                 "repo": "simba-ehr-frontend",
-                "index": 524,
+                "issue_number": 524,
                 "title": "new title",
                 "state": "closed",
                 "remove_deadline": true
@@ -2045,7 +2045,7 @@ fn issues_comments_maps_to_issue_read_get_comments() {
             serde_json::json!({
                 "owner": "XINTUKJ",
                 "repo": "simba-ehr-frontend",
-                "index": 524,
+                "issue_number": 524,
                 "method": "get_comments"
             })
         )
@@ -2080,7 +2080,7 @@ fn issues_comments_maps_with_comment_id_filter() {
             serde_json::json!({
                 "owner": "XINTUKJ",
                 "repo": "simba-ehr-frontend",
-                "index": 524,
+                "issue_number": 524,
                 "method": "get_comments"
             }),
             ResultFilter::comment_ids(vec![88, 99]),
@@ -2115,7 +2115,7 @@ fn issues_comment_add_maps_to_issue_write_add_comment() {
                 "method": "add_comment",
                 "owner": "XINTUKJ",
                 "repo": "simba-ehr-frontend",
-                "index": 524,
+                "issue_number": 524,
                 "body": "follow up"
             })
         )
@@ -2151,7 +2151,7 @@ fn issues_comment_edit_maps_to_issue_write_edit_comment() {
                 "method": "edit_comment",
                 "owner": "XINTUKJ",
                 "repo": "simba-ehr-frontend",
-                "index": 524,
+                "issue_number": 524,
                 "commentID": 88,
                 "body": "edited body"
             })
@@ -2183,7 +2183,7 @@ fn issues_labels_maps_to_issue_read_get_labels() {
             serde_json::json!({
                 "owner": "XINTUKJ",
                 "repo": "simba-ehr-frontend",
-                "index": 524,
+                "issue_number": 524,
                 "method": "get_labels"
             })
         )
@@ -2219,7 +2219,7 @@ fn issues_labels_add_maps_to_issue_write_add_labels() {
                 "method": "add_labels",
                 "owner": "XINTUKJ",
                 "repo": "simba-ehr-frontend",
-                "index": 524,
+                "issue_number": 524,
                 "labels": [1, 2]
             })
         )
@@ -2276,7 +2276,7 @@ fn issues_label_remove_maps_when_confirmed() {
                 "method": "remove_label",
                 "owner": "XINTUKJ",
                 "repo": "simba-ehr-frontend",
-                "index": 524,
+                "issue_number": 524,
                 "label_id": 2
             })
         )
@@ -2312,7 +2312,7 @@ fn issues_labels_replace_maps_to_issue_write_replace_labels() {
                 "method": "replace_labels",
                 "owner": "XINTUKJ",
                 "repo": "simba-ehr-frontend",
-                "index": 524,
+                "issue_number": 524,
                 "labels": [4, 5]
             })
         )
@@ -2365,7 +2365,7 @@ fn issues_labels_clear_maps_when_confirmed() {
                 "method": "clear_labels",
                 "owner": "XINTUKJ",
                 "repo": "simba-ehr-frontend",
-                "index": 524
+                "issue_number": 524
             })
         )
     );
@@ -2397,9 +2397,9 @@ fn issues_time_list_maps_to_timetracking_read() {
                 "method": "list_issue_times",
                 "owner": "XINTUKJ",
                 "repo": "simba-ehr-frontend",
-                "index": 524,
+                "issue_number": 524,
                 "page": 1,
-                "perPage": 30
+                "per_page": 30
             })
         )
     );
@@ -2431,7 +2431,7 @@ fn issues_time_start_maps_to_timetracking_write_start_stopwatch() {
                 "method": "start_stopwatch",
                 "owner": "XINTUKJ",
                 "repo": "simba-ehr-frontend",
-                "index": 524
+                "issue_number": 524
             })
         )
     );
@@ -2463,7 +2463,7 @@ fn issues_time_stop_maps_to_timetracking_write_stop_stopwatch() {
                 "method": "stop_stopwatch",
                 "owner": "XINTUKJ",
                 "repo": "simba-ehr-frontend",
-                "index": 524
+                "issue_number": 524
             })
         )
     );
@@ -2517,7 +2517,7 @@ fn issues_time_reset_stopwatch_maps_when_confirmed() {
                 "method": "delete_stopwatch",
                 "owner": "XINTUKJ",
                 "repo": "simba-ehr-frontend",
-                "index": 524
+                "issue_number": 524
             })
         )
     );
@@ -2551,7 +2551,7 @@ fn issues_time_add_maps_to_timetracking_write_add_time() {
                 "method": "add_time",
                 "owner": "XINTUKJ",
                 "repo": "simba-ehr-frontend",
-                "index": 524,
+                "issue_number": 524,
                 "time": 120
             })
         )
@@ -2610,7 +2610,7 @@ fn issues_time_delete_maps_when_confirmed() {
                 "method": "delete_time",
                 "owner": "XINTUKJ",
                 "repo": "simba-ehr-frontend",
-                "index": 524,
+                "issue_number": 524,
                 "id": 77
             })
         )
@@ -2670,7 +2670,7 @@ fn labels_repo_list_maps_to_label_read_list_repo_labels() {
                 "owner": "XINTUKJ",
                 "repo": "simba-ehr-frontend",
                 "page": 2,
-                "perPage": 50
+                "per_page": 50
             })
         )
     );
@@ -2866,7 +2866,7 @@ fn labels_org_list_maps_to_label_read_list_org_labels() {
                 "method": "list_org_labels",
                 "org": "XINTUKJ",
                 "page": 3,
-                "perPage": 20
+                "per_page": 20
             })
         )
     );
@@ -3029,7 +3029,7 @@ fn milestones_list_maps_to_milestone_read_list() {
                 "state": "open",
                 "name": "v0",
                 "page": 2,
-                "perPage": 40
+                "per_page": 40
             })
         )
     );

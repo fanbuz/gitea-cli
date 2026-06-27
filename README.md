@@ -1,6 +1,6 @@
 # gitea-cli
 
-[![Version](https://img.shields.io/badge/version-0.0.9-blue)](https://github.com/fanbuz/gitea-cli/releases/tag/v0.0.9)
+[![Version](https://img.shields.io/badge/version-0.0.10-blue)](https://github.com/fanbuz/gitea-cli/releases/tag/v0.0.10)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 
 `gitea-cli` 是一个用 Rust 实现的本地命令行工具，用来把已经配置好的 Gitea MCP Server 暴露成可复用的 shell CLI。
@@ -135,7 +135,7 @@ gitea-cli --json resolve issue https://your-gitea.example.com/YOUR_ORG/YOUR_REPO
 直接调用底层 MCP 工具：
 
 ```bash
-gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_REPO","index":123,"method":"get"}'
+gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_REPO","issue_number":123,"method":"get"}'
 ```
 
 ## Command Surface
