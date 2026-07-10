@@ -1,6 +1,6 @@
 # gitea-cli
 
-[![Version](https://img.shields.io/badge/version-0.0.11-blue)](https://github.com/fanbuz/gitea-cli/releases/tag/v0.0.11)
+[![Version](https://img.shields.io/badge/version-0.0.12-blue)](https://github.com/fanbuz/gitea-cli/releases/tag/v0.0.12)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 
 `gitea-cli` 是一个用 Rust 实现的本地命令行工具，用来把 Gitea MCP Server 暴露成可复用的 shell CLI。

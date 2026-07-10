@@ -51,6 +51,11 @@ fn loads_token_file_profile_as_server_env() {
     let token_path: PathBuf = dir.path().join("token.txt");
     let config_path: PathBuf = dir.path().join("config.toml");
     fs::write(&token_path, "secret").unwrap();
+    let token_path_value = token_path
+        .display()
+        .to_string()
+        .replace('\\', "\\\\")
+        .replace('"', "\\\"");
     fs::write(
         &config_path,
         format!(
@@ -69,7 +74,7 @@ args = ["-t", "stdio"]
 type = "token_file"
 token_file = "{}"
 "#,
-            token_path.display()
+            token_path_value
         ),
     )
     .unwrap();
