@@ -1,23 +1,23 @@
 # gitea-cli
 
-[![Version](https://img.shields.io/badge/version-0.0.10-blue)](https://github.com/fanbuz/gitea-cli/releases/tag/v0.0.10)
+[![Version](https://img.shields.io/badge/version-0.0.11-blue)](https://github.com/fanbuz/gitea-cli/releases/tag/v0.0.11)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 
-`gitea-cli` 是一个用 Rust 实现的本地命令行工具，用来把已经配置好的 Gitea MCP Server 暴露成可复用的 shell CLI。
+`gitea-cli` 是一个用 Rust 实现的本地命令行工具，用来把 Gitea MCP Server 暴露成可复用的 shell CLI。
 
-它适合终端脚本、AI agent、自动化任务和日常排查场景：复用现有的 Codex MCP 配置，不额外维护一套 Gitea 登录流程，同时输出稳定 JSON，便于继续串接别的工具。
+它适合终端脚本、AI agent、自动化任务和日常排查场景：通过自己的配置文件管理 Gitea 实例和认证来源，同时输出稳定 JSON，便于继续串接别的工具。
 
 ## Project Background
 
 - 本项目是一个基于 Gitea 官方 MCP Server [`gitea/gitea-mcp`](https://gitea.com/gitea/gitea-mcp) 构建的 agent-friendly CLI 包装层。
-- 本项目的 CLI 设计方式参考 OpenAI Codex 官方用例文档 [Create a CLI Codex can use](https://developers.openai.com/codex/use-cases/agent-friendly-clis)，重点放在 agent 友好的命令结构、稳定 JSON 输出、可脚本化和可验证性上。
-- `gitea-cli` 自己不直接实现 Gitea API，也不重复造一套鉴权；它会读取 `~/.codex/config.toml` 中的 `mcp_servers.gitea.command`，把底层 MCP 能力整理成更适合人类和 agent 使用的命令面。
-- 如果你使用的是官方 `gitea-mcp`，或本地已有 `gitea-mcp-server` 包装命令，只要该 MCP 配置可用，`gitea-cli` 就能直接复用。
-- 后续规划会补一层 `gitea-cli` 自己的独立配置文件，让它在保留 Codex 兼容能力的同时，也能直接适配官方 brew 安装的 `gitea-mcp-server`。
+- 项目重点放在 agent 友好的命令结构、稳定 JSON 输出、可脚本化和可验证性上。
+- `gitea-cli` 自己不直接实现 Gitea API；它读取 `~/.config/gitea-cli/config.toml`，解析 profile、host、认证来源和 MCP server 启动参数，再通过 stdio 调用底层 MCP 能力。
+- 如果你使用的是官方 `gitea-mcp`，或本地已有 `gitea-mcp-server` 包装命令，只要该命令可执行，`gitea-cli` 就能通过配置文件启动它。
 
 ## Features
 
-- 复用 `~/.codex/config.toml` 里的 `gitea` MCP 配置
+- 通过 `~/.config/gitea-cli/config.toml` 管理 Gitea 实例、profile 与认证来源
+- 提供 `config path/init/show/validate` 配置管理命令
 - 通过 stdio 与已配置的 Gitea MCP Server 通信，不重新发明鉴权
 - 提供 `doctor` 健康检查，自动脱敏敏感参数
 - 支持 `--fields` 对 JSON 输出做字段裁剪，降低 agent 调用时的 token 噪音
@@ -31,21 +31,29 @@
 
 - Rust toolchain
 - 可执行的 Gitea MCP Server，例如官方项目 [`gitea/gitea-mcp`](https://gitea.com/gitea/gitea-mcp)
-- 已配置好的 `~/.codex/config.toml`
+- 已配置好的 `~/.config/gitea-cli/config.toml`
 
 示例配置：
 
 ```toml
-[mcp_servers.gitea]
-type = "stdio"
-command = "gitea-mcp"
-args = ["-t", "stdio", "--host", "https://your-gitea.example.com"]
+version = 1
+active_profile = "default"
 
-[mcp_servers.gitea.env]
-GITEA_ACCESS_TOKEN = "YOUR_TOKEN"
+[profiles.default]
+host = "https://your-gitea.example.com"
+
+[profiles.default.mcp]
+command = "gitea-mcp-server"
+args = ["-t", "stdio"]
+
+[profiles.default.mcp.env]
+
+[profiles.default.auth]
+type = "token_env"
+token_env = "GITEA_ACCESS_TOKEN"
 ```
 
-如果你的环境里使用的是 `gitea-mcp-server` 或其他包装命令，也可以直接填在 `command` 字段中。
+认证也可以使用 `token_file` 或 `token`，其中明文 `token` 会在 `doctor` 中提示安全风险。
 
 ## Installation
 
@@ -148,10 +156,24 @@ gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_
 - `--fields`
   仅在 JSON 输出中保留指定字段，支持逗号分隔和点号路径，例如 `kind,result.parsed.id,result.parsed.title`。
 
+### Config
+
+- `gitea-cli config path`
+  输出当前将要使用的配置文件路径。
+
+- `gitea-cli config init --profile default --host https://your-gitea.example.com`
+  生成最小可编辑配置文件。
+
+- `gitea-cli config show --json`
+  展示脱敏后的配置。
+
+- `gitea-cli config validate --json`
+  校验配置结构、MCP 命令和认证来源。
+
 ### Health
 
 - `gitea-cli --json doctor`
-  检查 `~/.codex/config.toml`、MCP 命令是否在 `PATH` 中、MCP 能否启动，以及当前可用工具数量。
+  检查 `~/.config/gitea-cli/config.toml`、MCP 命令是否在 `PATH` 中、MCP 能否启动、认证是否可用，以及当前可用工具数量。
 
 - `gitea-cli --json tools list`
   列出当前 Gitea MCP Server 暴露出来的全部工具，便于确认高层命令之外还能直接调用什么。
@@ -556,9 +578,7 @@ make install-local
 - 补充 wiki、PR 写操作、Actions 写操作等高层命令
 - 增加更完整的分页和过滤支持
 - 在未来引入写命令前补充更清晰的安全护栏
-- 增加 `gitea-cli` 独立配置层
-  计划支持 `~/.config/gitea-cli/config.toml` 一类的本地配置文件，并采用 `gitea-cli 自身配置 > ~/.codex/config.toml > 默认 gitea-mcp-server` 的回退顺序。
-  目标是让 `gitea-cli` 既能复用 Codex MCP 配置，也能在官方 `gitea-mcp-server` brew 安装场景下独立工作。
+- 支持项目目录级配置覆盖、repo alias 与 URL alias
 
 ## Contributing
 

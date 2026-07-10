@@ -56,6 +56,61 @@ fn root_help_includes_fields_flag() {
 
     assert!(help.contains("--fields"));
     assert!(help.contains("仅在 JSON 输出中保留指定字段"));
+    assert!(help.contains("--config"));
+    assert!(help.contains("--profile"));
+}
+
+#[test]
+fn config_path_maps_to_config_path() {
+    let cli = Cli::try_parse_from(["gitea-cli", "config", "path"]).unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(planned, PlannedCommand::ConfigPath);
+}
+
+#[test]
+fn config_init_maps_to_config_init() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "config",
+        "init",
+        "--profile",
+        "default",
+        "--host",
+        "https://gitea.example.com/",
+        "--force",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::ConfigInit {
+            host: "https://gitea.example.com/".to_string(),
+            force: true
+        }
+    );
+    assert_eq!(cli.profile.as_deref(), Some("default"));
+}
+
+#[test]
+fn config_show_maps_to_config_show() {
+    let cli = Cli::try_parse_from(["gitea-cli", "config", "show"]).unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(planned, PlannedCommand::ConfigShow);
+}
+
+#[test]
+fn config_validate_maps_to_config_validate() {
+    let cli = Cli::try_parse_from(["gitea-cli", "config", "validate"]).unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(planned, PlannedCommand::ConfigValidate);
 }
 
 #[test]

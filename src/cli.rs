@@ -1,4 +1,4 @@
-use std::fs;
+use std::{fs, path::PathBuf};
 
 use anyhow::{Context, Result, anyhow, bail};
 use clap::{Args, Parser, Subcommand};
@@ -19,6 +19,13 @@ impl ResultFilter {
 #[derive(Debug, Clone, PartialEq)]
 pub enum PlannedCommand {
     Doctor,
+    ConfigPath,
+    ConfigInit {
+        host: String,
+        force: bool,
+    },
+    ConfigShow,
+    ConfigValidate,
     ToolsList,
     ToolCall {
         tool: String,
@@ -64,6 +71,15 @@ impl PlannedCommand {
     after_help = concat!("当前版本: ", env!("CARGO_PKG_VERSION"))
 )]
 pub struct Cli {
+    #[arg(
+        long,
+        global = true,
+        value_name = "PATH",
+        help = "指定 gitea-cli 配置文件路径"
+    )]
+    pub config: Option<PathBuf>,
+    #[arg(long, global = true, help = "指定 gitea-cli 配置 profile")]
+    pub profile: Option<String>,
     #[arg(long, global = true, help = "输出紧凑 JSON")]
     pub json: bool,
     #[arg(
@@ -91,6 +107,8 @@ impl Cli {
 pub enum Command {
     /// 检查 gitea-cli 与底层 Gitea MCP 配置是否可用
     Doctor,
+    /// 管理 gitea-cli 配置文件
+    Config(ConfigCommand),
     /// 查看 gitea-cli 封装后的 MCP 工具能力
     Tools(ToolsCommand),
     /// 读取当前认证用户信息
@@ -119,6 +137,34 @@ pub enum Command {
     Resolve(ResolveCommand),
     /// 直接调用底层 MCP 工具，作为原始逃生口
     Mcp(McpCommand),
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct ConfigCommand {
+    #[command(subcommand)]
+    pub command: ConfigSubcommand,
+}
+
+#[derive(Debug, Clone, Subcommand)]
+pub enum ConfigSubcommand {
+    /// 输出当前将要使用的配置文件路径
+    Path,
+    /// 生成最小可编辑配置文件
+    Init(ConfigInitArgs),
+    /// 展示脱敏后的配置
+    Show,
+    /// 校验配置结构、命令和认证来源
+    Validate,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct ConfigInitArgs {
+    /// Gitea 服务地址
+    #[arg(long)]
+    pub host: String,
+    /// 覆盖已存在的配置文件
+    #[arg(long)]
+    pub force: bool,
 }
 
 #[derive(Debug, Clone, Args)]
@@ -1456,6 +1502,15 @@ pub struct ActionsRunTargetArgs {
 pub fn plan_command(cli: &Cli) -> Result<PlannedCommand> {
     match &cli.command {
         Command::Doctor => Ok(PlannedCommand::Doctor),
+        Command::Config(command) => match &command.command {
+            ConfigSubcommand::Path => Ok(PlannedCommand::ConfigPath),
+            ConfigSubcommand::Init(args) => Ok(PlannedCommand::ConfigInit {
+                host: args.host.clone(),
+                force: args.force,
+            }),
+            ConfigSubcommand::Show => Ok(PlannedCommand::ConfigShow),
+            ConfigSubcommand::Validate => Ok(PlannedCommand::ConfigValidate),
+        },
         Command::Tools(command) => match &command.command {
             ToolsSubcommand::List => Ok(PlannedCommand::ToolsList),
         },
