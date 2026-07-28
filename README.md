@@ -1,6 +1,6 @@
 # gitea-cli
 
-[![Version](https://img.shields.io/badge/version-0.0.12-blue)](https://github.com/fanbuz/gitea-cli/releases/tag/v0.0.12)
+[![Version](https://img.shields.io/badge/version-1.5.0-blue)](https://github.com/fanbuz/gitea-cli/releases/tag/v1.5.0)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 
 `gitea-cli` 是一个用 Rust 实现的本地命令行工具，用来把 Gitea MCP Server 暴露成可复用的 shell CLI。
@@ -26,6 +26,15 @@
 - 提供 release 与 tag 的创建、删除高层命令，覆盖常见版本对象写操作
 - 当 MCP 返回单条 JSON 文本内容时，自动补充 `result.parsed`
 - 保留 `mcp call` 原始出口，方便覆盖未封装的工具
+
+## Gitea MCP 1.5.0 Compatibility
+
+`gitea-cli 1.5.0` 对齐官方 Gitea MCP Server 1.5.0：
+
+- 新增 `issues attachments list/get/download`，覆盖 issue 与评论附件的元数据读取和下载
+- 新增 `actions job`，读取单个 Actions job 的完整详情
+- 配置中的 `profiles.<name>.mcp.args` 可直接透传 MCP 1.5.0 的 `-S/--scope` 参数；scope 与 `--tools` 按并集合并
+- 保留对非文本 MCP content 的透明 JSON 输出，附件内联图片或下载结果不会被错误归一化
 
 ## Requirements
 
@@ -54,6 +63,14 @@ token_env = "GITEA_ACCESS_TOKEN"
 ```
 
 认证也可以使用 `token_file` 或 `token`，其中明文 `token` 会在 `doctor` 中提示安全风险。
+
+如果只希望启动部分 MCP 工具域，可在 Gitea MCP 1.5.0+ 中配置：
+
+```toml
+args = ["-t", "stdio", "--scope", "issue,actions"]
+```
+
+scope 会影响可调用工具；使用上面的示例时，其他高层命令会因为对应 MCP 工具未加载而返回明确错误。
 
 ## Installation
 
@@ -301,6 +318,15 @@ gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_
 - `gitea-cli --json issues labels-clear --owner YOUR_ORG --repo YOUR_REPO --index 123 --yes`
   清空 issue 当前全部 labels，属于危险操作，必须显式传 `--yes`。
 
+- `gitea-cli --json issues attachments list --owner YOUR_ORG --repo YOUR_REPO --index 123`
+  列出 issue 附件；改用 `--comment-id 88` 可列出指定评论的附件。
+
+- `gitea-cli --json issues attachments get --owner YOUR_ORG --repo YOUR_REPO --index 123 --attachment-id 7`
+  读取单个 issue 或评论附件的元数据。
+
+- `gitea-cli --json issues attachments download --owner YOUR_ORG --repo YOUR_REPO --attachment-uuid UUID --output-path ./attachment.png`
+  按 UUID 下载附件到指定路径；也可用 `--attachment-id` 配合 `--index` 或 `--comment-id` 定位附件。
+
 ### Issue Time
 
 - `gitea-cli --json issues time list --owner YOUR_ORG --repo YOUR_REPO --index 123`
@@ -428,6 +454,9 @@ gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_
 - `gitea-cli --json actions jobs --owner YOUR_ORG --repo YOUR_REPO --run-id 456`
   读取某次 run 下的 jobs；如果不传 `--run-id`，则读取仓库级 job 列表。
 
+- `gitea-cli --json actions job --owner YOUR_ORG --repo YOUR_REPO --job-id 789`
+  读取单个 Actions job 的完整详情。
+
 - `gitea-cli --json actions log-preview --owner YOUR_ORG --repo YOUR_REPO --job-id 789`
   读取某个 job 的日志预览，适合先快速看失败摘要，不必先下载完整日志。
 
@@ -484,6 +513,9 @@ gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_
 - [x] Issue 读取与写操作
   已提供 `issues list/get/comments/search/create/update/comment-add/comment-edit/labels/labels-add/label-remove/labels-replace/labels-clear`，其中 `issues comments` 支持通过可重复 `--comment-id` 过滤评论子集。
 
+- [x] Issue 与评论附件
+  已提供 `issues attachments list/get/download`。
+
 - [x] Pull Request 主体读写操作
   已提供 `pulls list/create/update/merge/get/diff/review-comments/reviews/review-get`。
 
@@ -491,7 +523,7 @@ gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_
   已提供 `pulls reviewers-add/reviewers-remove/review-create/review-submit/review-delete/review-dismiss`。
 
 - [x] Actions 只读排查路径
-  已提供 `actions workflows`、`actions runs`、`actions jobs`、`actions log-preview`。
+  已提供 `actions workflows`、`actions runs`、`actions jobs`、`actions job`、`actions log-preview`。
 
 - [x] Actions 执行控制
   已提供 `actions dispatch`、`actions cancel`、`actions rerun`。

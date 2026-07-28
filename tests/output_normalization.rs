@@ -18,6 +18,22 @@ fn parses_single_json_text_content() {
 }
 
 #[test]
+fn preserves_non_text_mcp_content_for_attachment_results() {
+    let raw = serde_json::json!({
+        "content": [{
+            "type": "image",
+            "data": "iVBORw0KGgo=",
+            "mimeType": "image/png"
+        }]
+    });
+
+    let normalized = normalize_tool_result(raw.clone());
+
+    assert_eq!(normalized, raw);
+    assert!(normalized.get("parsed").is_none());
+}
+
+#[test]
 fn select_fields_keeps_requested_nested_paths() {
     let value = serde_json::json!({
         "ok": true,

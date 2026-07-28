@@ -3354,3 +3354,172 @@ fn actions_help_includes_write_subcommand_descriptions() {
         "重跑指定 run"
     ));
 }
+
+#[test]
+fn actions_job_maps_to_actions_run_read_get_job() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "actions",
+        "job",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--job-id",
+        "789",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "actions_run_read",
+            serde_json::json!({
+                "method": "get_job",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "job_id": 789
+            })
+        )
+    );
+}
+
+#[test]
+fn issue_attachments_list_maps_issue_scope() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "issues",
+        "attachments",
+        "list",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--index",
+        "524",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "attachment_read",
+            serde_json::json!({
+                "method": "list",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "issue_number": 524
+            })
+        )
+    );
+}
+
+#[test]
+fn issue_attachments_get_maps_comment_scope() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "issues",
+        "attachments",
+        "get",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--comment-id",
+        "88",
+        "--attachment-id",
+        "7",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "attachment_read",
+            serde_json::json!({
+                "method": "get",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "comment_id": 88,
+                "attachment_id": 7
+            })
+        )
+    );
+}
+
+#[test]
+fn issue_attachments_download_maps_uuid_and_output_path() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "issues",
+        "attachments",
+        "download",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--attachment-uuid",
+        "attachment-uuid",
+        "--output-path",
+        "/tmp/screenshot.png",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "attachment_read",
+            serde_json::json!({
+                "method": "download",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "attachment_uuid": "attachment-uuid",
+                "output_path": "/tmp/screenshot.png"
+            })
+        )
+    );
+}
+
+#[test]
+fn issue_attachments_require_exactly_one_scope_for_metadata() {
+    let missing_scope = Cli::try_parse_from([
+        "gitea-cli",
+        "issues",
+        "attachments",
+        "list",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+    ])
+    .unwrap();
+
+    assert!(plan_command(&missing_scope).is_err());
+
+    let conflicting_scope = Cli::try_parse_from([
+        "gitea-cli",
+        "issues",
+        "attachments",
+        "get",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--index",
+        "524",
+        "--comment-id",
+        "88",
+        "--attachment-id",
+        "7",
+    ]);
+
+    assert!(conflicting_scope.is_err());
+}

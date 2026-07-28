@@ -307,8 +307,26 @@ pub enum IssuesSubcommand {
     LabelsReplace(IssueLabelsArgs),
     /// 清空 issue 当前 labels
     LabelsClear(IssueDangerousTargetArgs),
+    /// 读取或下载 issue 与评论附件
+    Attachments(IssueAttachmentsCommand),
     /// 读取或写入 issue time tracking
     Time(IssueTimeCommand),
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct IssueAttachmentsCommand {
+    #[command(subcommand)]
+    pub command: IssueAttachmentsSubcommand,
+}
+
+#[derive(Debug, Clone, Subcommand)]
+pub enum IssueAttachmentsSubcommand {
+    /// 列出 issue 或评论附件
+    List(IssueAttachmentScopeArgs),
+    /// 读取单个 issue 或评论附件的元数据
+    Get(IssueAttachmentGetArgs),
+    /// 下载 issue 或评论附件
+    Download(IssueAttachmentDownloadArgs),
 }
 
 #[derive(Debug, Clone, Args)]
@@ -435,6 +453,8 @@ pub enum ActionsSubcommand {
     Runs(ActionsRunsArgs),
     /// 列出仓库 jobs，或按 run 读取 jobs
     Jobs(ActionsJobsArgs),
+    /// 读取单个 Actions job 的完整详情
+    Job(ActionsJobTargetArgs),
     /// 预览某个 job 的日志尾部
     LogPreview(ActionsLogPreviewArgs),
     /// 触发 workflow 运行
@@ -1067,6 +1087,42 @@ pub struct IssueCommentEditArgs {
 }
 
 #[derive(Debug, Clone, Args)]
+pub struct IssueAttachmentScopeArgs {
+    #[command(flatten)]
+    pub target: RepoTargetArgs,
+    /// Issue 编号；与 --comment-id 二选一
+    #[arg(long, conflicts_with = "comment_id")]
+    pub index: Option<u64>,
+    /// 评论 ID；与 --index 二选一
+    #[arg(long = "comment-id", conflicts_with = "index")]
+    pub comment_id: Option<u64>,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct IssueAttachmentGetArgs {
+    #[command(flatten)]
+    pub scope: IssueAttachmentScopeArgs,
+    /// 附件 ID
+    #[arg(long = "attachment-id")]
+    pub attachment_id: u64,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct IssueAttachmentDownloadArgs {
+    #[command(flatten)]
+    pub scope: IssueAttachmentScopeArgs,
+    /// 附件 ID；使用时还需通过 --index 或 --comment-id 指定所属对象
+    #[arg(long = "attachment-id", conflicts_with = "attachment_uuid")]
+    pub attachment_id: Option<u64>,
+    /// 附件 UUID；可直接下载，无需指定所属 issue 或评论
+    #[arg(long = "attachment-uuid", conflicts_with = "attachment_id")]
+    pub attachment_uuid: Option<String>,
+    /// 将附件写入这个精确路径；不传时由 MCP 返回内联结果
+    #[arg(long = "output-path")]
+    pub output_path: Option<String>,
+}
+
+#[derive(Debug, Clone, Args)]
 pub struct CommentFilterArgs {
     /// 评论 ID，可重复传入
     #[arg(long = "comment-id")]
@@ -1454,6 +1510,15 @@ pub struct ActionsJobsArgs {
     pub status: Option<String>,
     #[command(flatten)]
     pub page: PageArgs,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct ActionsJobTargetArgs {
+    #[command(flatten)]
+    pub target: RepoTargetArgs,
+    /// Job ID
+    #[arg(long = "job-id")]
+    pub job_id: u64,
 }
 
 #[derive(Debug, Clone, Args)]
@@ -1853,7 +1918,98 @@ fn plan_issues(command: &IssuesCommand) -> Result<PlannedCommand> {
                 }),
             ))
         }
+        IssuesSubcommand::Attachments(command) => plan_issue_attachments(command),
         IssuesSubcommand::Time(command) => plan_issue_time(command),
+    }
+}
+
+fn plan_issue_attachments(command: &IssueAttachmentsCommand) -> Result<PlannedCommand> {
+    match &command.command {
+        IssueAttachmentsSubcommand::List(args) => {
+            let mut params = attachment_base_params("list", &args.target);
+            insert_attachment_scope(&mut params, args)?;
+            Ok(PlannedCommand::tool_call(
+                "attachment_read",
+                Value::Object(params),
+            ))
+        }
+        IssueAttachmentsSubcommand::Get(args) => {
+            let mut params = attachment_base_params("get", &args.scope.target);
+            insert_attachment_scope(&mut params, &args.scope)?;
+            params.insert("attachment_id".to_string(), json!(args.attachment_id));
+            Ok(PlannedCommand::tool_call(
+                "attachment_read",
+                Value::Object(params),
+            ))
+        }
+        IssueAttachmentsSubcommand::Download(args) => {
+            let mut params = attachment_base_params("download", &args.scope.target);
+
+            match (&args.attachment_uuid, args.attachment_id) {
+                (Some(uuid), None) => {
+                    params.insert("attachment_uuid".to_string(), json!(uuid));
+                    insert_optional_attachment_scope(&mut params, &args.scope)?;
+                }
+                (None, Some(attachment_id)) => {
+                    insert_attachment_scope(&mut params, &args.scope)?;
+                    params.insert("attachment_id".to_string(), json!(attachment_id));
+                }
+                (None, None) => {
+                    return Err(anyhow!("下载附件需要 --attachment-id 或 --attachment-uuid"));
+                }
+                (Some(_), Some(_)) => unreachable!("clap rejects conflicting attachment keys"),
+            }
+
+            insert_optional_string(&mut params, "output_path", args.output_path.as_deref());
+            Ok(PlannedCommand::tool_call(
+                "attachment_read",
+                Value::Object(params),
+            ))
+        }
+    }
+}
+
+fn attachment_base_params(method: &str, target: &RepoTargetArgs) -> Map<String, Value> {
+    let mut params = Map::new();
+    params.insert("method".to_string(), json!(method));
+    params.insert("owner".to_string(), json!(target.owner));
+    params.insert("repo".to_string(), json!(target.repo));
+    params
+}
+
+fn insert_attachment_scope(
+    params: &mut Map<String, Value>,
+    scope: &IssueAttachmentScopeArgs,
+) -> Result<()> {
+    match (scope.index, scope.comment_id) {
+        (Some(issue_number), None) => {
+            params.insert("issue_number".to_string(), json!(issue_number));
+            Ok(())
+        }
+        (None, Some(comment_id)) => {
+            params.insert("comment_id".to_string(), json!(comment_id));
+            Ok(())
+        }
+        (None, None) => Err(anyhow!("附件元数据操作需要 --index 或 --comment-id")),
+        (Some(_), Some(_)) => unreachable!("clap rejects conflicting attachment scopes"),
+    }
+}
+
+fn insert_optional_attachment_scope(
+    params: &mut Map<String, Value>,
+    scope: &IssueAttachmentScopeArgs,
+) -> Result<()> {
+    match (scope.index, scope.comment_id) {
+        (Some(issue_number), None) => {
+            params.insert("issue_number".to_string(), json!(issue_number));
+            Ok(())
+        }
+        (None, Some(comment_id)) => {
+            params.insert("comment_id".to_string(), json!(comment_id));
+            Ok(())
+        }
+        (None, None) => Ok(()),
+        (Some(_), Some(_)) => unreachable!("clap rejects conflicting attachment scopes"),
     }
 }
 
@@ -2529,6 +2685,15 @@ fn plan_actions(command: &ActionsCommand) -> Result<PlannedCommand> {
                 Value::Object(params),
             ))
         }
+        ActionsSubcommand::Job(args) => Ok(PlannedCommand::tool_call(
+            "actions_run_read",
+            json!({
+                "method": "get_job",
+                "owner": args.target.owner,
+                "repo": args.target.repo,
+                "job_id": args.job_id
+            }),
+        )),
         ActionsSubcommand::LogPreview(args) => {
             let mut params = Map::new();
             params.insert("method".to_string(), json!("get_job_log_preview"));
