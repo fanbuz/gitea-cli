@@ -1553,6 +1553,37 @@ fn pulls_review_comments_maps_to_pull_request_read_get_review_comments() {
 }
 
 #[test]
+fn pulls_review_comments_maps_without_review_id() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "pulls",
+        "review-comments",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--index",
+        "12",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "pull_request_read",
+            serde_json::json!({
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "pull_number": 12,
+                "method": "get_review_comments"
+            })
+        )
+    );
+}
+
+#[test]
 fn pulls_review_comments_maps_with_comment_id_filter() {
     let cli = Cli::try_parse_from([
         "gitea-cli",
@@ -1592,7 +1623,7 @@ fn pulls_review_comments_maps_with_comment_id_filter() {
 }
 
 #[test]
-fn pulls_review_comments_help_includes_required_options() {
+fn pulls_review_comments_help_includes_filter_options() {
     let mut root = Cli::command();
     let pulls = find_subcommand(&mut root, "pulls");
     let comments_help = render_help(find_subcommand(pulls, "review-comments").clone());
@@ -1600,6 +1631,105 @@ fn pulls_review_comments_help_includes_required_options() {
     assert!(comments_help.contains("--review-id <REVIEW_ID>"));
     assert!(comments_help.contains("--comment-id <COMMENT_IDS>"));
     assert!(comments_help.contains("评论 ID，可重复传入"));
+}
+
+#[test]
+fn pulls_review_comment_reply_maps_to_review_write() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "pulls",
+        "review-comment-reply",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--index",
+        "12",
+        "--comment-id",
+        "101",
+        "--body",
+        "fixed in the latest commit",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "pull_request_review_write",
+            serde_json::json!({
+                "method": "reply_comment",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "pull_number": 12,
+                "comment_id": 101,
+                "body": "fixed in the latest commit"
+            })
+        )
+    );
+}
+
+#[test]
+fn pulls_review_thread_resolve_maps_to_review_write() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "pulls",
+        "review-thread-resolve",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--comment-id",
+        "101",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "pull_request_review_write",
+            serde_json::json!({
+                "method": "resolve_thread",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "comment_id": 101
+            })
+        )
+    );
+}
+
+#[test]
+fn pulls_review_thread_unresolve_maps_to_review_write() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "pulls",
+        "review-thread-unresolve",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--comment-id",
+        "101",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "pull_request_review_write",
+            serde_json::json!({
+                "method": "unresolve_thread",
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "comment_id": 101
+            })
+        )
+    );
 }
 
 #[test]
@@ -1646,6 +1776,21 @@ fn pulls_help_includes_review_subcommands() {
         &pulls_help,
         "review-dismiss",
         "撤销 pull request review"
+    ));
+    assert!(help_has_command_description(
+        &pulls_help,
+        "review-comment-reply",
+        "回复 pull request review 评论"
+    ));
+    assert!(help_has_command_description(
+        &pulls_help,
+        "review-thread-resolve",
+        "将 pull request review 评论线程标记为 resolved"
+    ));
+    assert!(help_has_command_description(
+        &pulls_help,
+        "review-thread-unresolve",
+        "将 pull request review 评论线程恢复为 unresolved"
     ));
 }
 

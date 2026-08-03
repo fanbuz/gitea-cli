@@ -1,6 +1,6 @@
 # gitea-cli
 
-[![Version](https://img.shields.io/badge/version-1.5.0-blue)](https://github.com/fanbuz/gitea-cli/releases/tag/v1.5.0)
+[![Version](https://img.shields.io/badge/version-1.6.0-blue)](https://github.com/fanbuz/gitea-cli/releases/tag/v1.6.0)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 
 `gitea-cli` 是一个用 Rust 实现的本地命令行工具，用来把 Gitea MCP Server 暴露成可复用的 shell CLI。
@@ -27,14 +27,20 @@
 - 当 MCP 返回单条 JSON 文本内容时，自动补充 `result.parsed`
 - 保留 `mcp call` 原始出口，方便覆盖未封装的工具
 
-## Gitea MCP 1.5.0 Compatibility
+## Gitea MCP 1.6.0 Compatibility
 
-`gitea-cli 1.5.0` 对齐官方 Gitea MCP Server 1.5.0：
+`gitea-cli 1.6.0` 对齐官方 Gitea MCP Server 1.6.0：
 
+- `pulls review-comments` 的 `--review-id` 改为可选，不传时可一次读取整个 Pull Request 的 review comments
+- 新增 `pulls review-comment-reply`，回复单条 review comment
+- 新增 `pulls review-thread-resolve/review-thread-unresolve`，控制 review thread 的 resolved 状态
+- 新增的 `review_id`、`resolved_by` 结果字段会通过稳定 JSON 输出透明返回
 - 新增 `issues attachments list/get/download`，覆盖 issue 与评论附件的元数据读取和下载
 - 新增 `actions job`，读取单个 Actions job 的完整详情
 - 配置中的 `profiles.<name>.mcp.args` 可直接透传 MCP 1.5.0 的 `-S/--scope` 参数；scope 与 `--tools` 按并集合并
 - 保留对非文本 MCP content 的透明 JSON 输出，附件内联图片或下载结果不会被错误归一化
+
+Review comment 回复需要目标 Gitea 实例为 1.27.0+；thread resolve/unresolve 需要 Gitea 1.26.0+。版本较低的实例仍可使用其他命令，但调用这些新 method 时会由服务端返回不支持错误。
 
 ## Requirements
 
@@ -413,11 +419,20 @@ gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_
 - `gitea-cli --json pulls diff --owner YOUR_ORG --repo YOUR_REPO --index 12`
   读取单个 Pull Request 的 diff 内容，用于脚本化审查或上下文提取。
 
-- `gitea-cli --json pulls review-comments --owner YOUR_ORG --repo YOUR_REPO --index 12 --review-id 7`
-  读取某个 Pull Request review 下的评论列表，方便补齐评审上下文。
+- `gitea-cli --json pulls review-comments --owner YOUR_ORG --repo YOUR_REPO --index 12`
+  一次读取整个 Pull Request 的 review comments；可选传入 `--review-id 7` 只读取指定 review。
 
-- `gitea-cli --json pulls review-comments --owner YOUR_ORG --repo YOUR_REPO --index 12 --review-id 7 --comment-id 101`
+- `gitea-cli --json pulls review-comments --owner YOUR_ORG --repo YOUR_REPO --index 12 --comment-id 101`
   读取某个 Pull Request review 下的评论列表，并在本地仅保留指定评论。
+
+- `gitea-cli --json pulls review-comment-reply --owner YOUR_ORG --repo YOUR_REPO --index 12 --comment-id 101 --body "fixed"`
+  回复单条 Pull Request review comment，需要 Gitea 1.27.0+。
+
+- `gitea-cli --json pulls review-thread-resolve --owner YOUR_ORG --repo YOUR_REPO --comment-id 101`
+  将 comment 所在 review thread 标记为 resolved，需要传入线程第一条评论的 ID，并要求 Gitea 1.26.0+。
+
+- `gitea-cli --json pulls review-thread-unresolve --owner YOUR_ORG --repo YOUR_REPO --comment-id 101`
+  将已 resolved 的 review thread 恢复为 unresolved。
 
 - `gitea-cli --json pulls reviews --owner YOUR_ORG --repo YOUR_REPO --index 12`
   读取某个 Pull Request 的 review 列表，适合查看当前评审流转情况。
@@ -520,7 +535,7 @@ gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_
   已提供 `pulls list/create/update/merge/get/diff/review-comments/reviews/review-get`。
 
 - [x] Pull Request 评审与 reviewer 管理
-  已提供 `pulls reviewers-add/reviewers-remove/review-create/review-submit/review-delete/review-dismiss`。
+  已提供 `pulls reviewers-add/reviewers-remove/review-create/review-submit/review-delete/review-dismiss/review-comment-reply/review-thread-resolve/review-thread-unresolve`。
 
 - [x] Actions 只读排查路径
   已提供 `actions workflows`、`actions runs`、`actions jobs`、`actions job`、`actions log-preview`。

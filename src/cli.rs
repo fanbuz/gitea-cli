@@ -433,6 +433,12 @@ pub enum PullsSubcommand {
     ReviewDelete(PullReviewDeleteArgs),
     /// 撤销 pull request review
     ReviewDismiss(PullReviewDismissArgs),
+    /// 回复 pull request review 评论
+    ReviewCommentReply(PullReviewCommentReplyArgs),
+    /// 将 pull request review 评论线程标记为 resolved
+    ReviewThreadResolve(PullReviewThreadArgs),
+    /// 将 pull request review 评论线程恢复为 unresolved
+    ReviewThreadUnresolve(PullReviewThreadArgs),
     /// 读取单个 pull request 的 diff
     Diff(PullDiffArgs),
     /// 读取 pull request review 评论列表
@@ -1342,12 +1348,33 @@ pub struct PullReviewDismissArgs {
 }
 
 #[derive(Debug, Clone, Args)]
+pub struct PullReviewCommentReplyArgs {
+    #[command(flatten)]
+    pub target: PullTargetArgs,
+    /// 要回复的 review comment ID
+    #[arg(long = "comment-id")]
+    pub comment_id: u64,
+    /// 回复正文
+    #[arg(long)]
+    pub body: String,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct PullReviewThreadArgs {
+    #[command(flatten)]
+    pub target: RepoTargetArgs,
+    /// Review thread 第一条评论的 ID
+    #[arg(long = "comment-id")]
+    pub comment_id: u64,
+}
+
+#[derive(Debug, Clone, Args)]
 pub struct PullReviewCommentsArgs {
     #[command(flatten)]
     pub target: PullTargetArgs,
-    /// Review ID
+    /// Review ID；不传时读取整个 pull request 的 review comments
     #[arg(long = "review-id")]
-    pub review_id: u64,
+    pub review_id: Option<u64>,
     #[command(flatten)]
     pub filter: CommentFilterArgs,
 }
@@ -2594,6 +2621,35 @@ fn plan_pulls(command: &PullsCommand) -> Result<PlannedCommand> {
                 "message": args.message
             }),
         )),
+        PullsSubcommand::ReviewCommentReply(args) => Ok(PlannedCommand::tool_call(
+            "pull_request_review_write",
+            json!({
+                "method": "reply_comment",
+                "owner": args.target.owner,
+                "repo": args.target.repo,
+                "pull_number": args.target.index,
+                "comment_id": args.comment_id,
+                "body": args.body
+            }),
+        )),
+        PullsSubcommand::ReviewThreadResolve(args) => Ok(PlannedCommand::tool_call(
+            "pull_request_review_write",
+            json!({
+                "method": "resolve_thread",
+                "owner": args.target.owner,
+                "repo": args.target.repo,
+                "comment_id": args.comment_id
+            }),
+        )),
+        PullsSubcommand::ReviewThreadUnresolve(args) => Ok(PlannedCommand::tool_call(
+            "pull_request_review_write",
+            json!({
+                "method": "unresolve_thread",
+                "owner": args.target.owner,
+                "repo": args.target.repo,
+                "comment_id": args.comment_id
+            }),
+        )),
         PullsSubcommand::Diff(args) => Ok(PlannedCommand::tool_call(
             "pull_request_read",
             json!({
@@ -2604,19 +2660,18 @@ fn plan_pulls(command: &PullsCommand) -> Result<PlannedCommand> {
                 "binary": args.binary
             }),
         )),
-        PullsSubcommand::ReviewComments(args) => Ok(with_optional_comment_filter(
-            PlannedCommand::tool_call(
-                "pull_request_read",
-                json!({
-                    "owner": args.target.owner,
-                    "repo": args.target.repo,
-                    "pull_number": args.target.index,
-                    "review_id": args.review_id,
-                    "method": "get_review_comments"
-                }),
-            ),
-            &args.filter.comment_ids,
-        )),
+        PullsSubcommand::ReviewComments(args) => {
+            let mut params = Map::new();
+            params.insert("method".to_string(), json!("get_review_comments"));
+            params.insert("owner".to_string(), json!(args.target.owner));
+            params.insert("repo".to_string(), json!(args.target.repo));
+            params.insert("pull_number".to_string(), json!(args.target.index));
+            insert_optional_u64(&mut params, "review_id", args.review_id);
+            Ok(with_optional_comment_filter(
+                PlannedCommand::tool_call("pull_request_read", Value::Object(params)),
+                &args.filter.comment_ids,
+            ))
+        }
     }
 }
 
