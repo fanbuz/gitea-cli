@@ -205,6 +205,8 @@ pub enum ReposSubcommand {
     Branches(RepoTargetWithPageArgs),
     /// 创建仓库分支
     BranchCreate(RepoBranchCreateArgs),
+    /// 重命名仓库分支
+    BranchRename(RepoBranchRenameArgs),
     /// 删除仓库分支
     BranchDelete(RepoBranchDeleteArgs),
     /// 读取指定仓库在某个 ref 下的文件树
@@ -666,6 +668,18 @@ pub struct RepoBranchCreateArgs {
     /// 作为起点的已有分支名
     #[arg(long = "from")]
     pub old_branch: String,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct RepoBranchRenameArgs {
+    #[command(flatten)]
+    pub target: RepoTargetArgs,
+    /// 当前分支名
+    #[arg(long)]
+    pub branch: String,
+    /// 重命名后的分支名
+    #[arg(long = "new-name")]
+    pub new_name: String,
 }
 
 #[derive(Debug, Clone, Args)]
@@ -1668,6 +1682,15 @@ fn plan_repos(command: &ReposCommand) -> Result<PlannedCommand> {
                 "repo": args.target.repo,
                 "branch": args.branch,
                 "old_branch": args.old_branch
+            }),
+        )),
+        ReposSubcommand::BranchRename(args) => Ok(PlannedCommand::tool_call(
+            "rename_branch",
+            json!({
+                "owner": args.target.owner,
+                "repo": args.target.repo,
+                "branch": args.branch,
+                "new_name": args.new_name
             }),
         )),
         ReposSubcommand::BranchDelete(args) => {

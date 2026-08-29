@@ -1,6 +1,6 @@
 # gitea-cli
 
-[![Version](https://img.shields.io/badge/version-1.6.0-blue)](https://github.com/fanbuz/gitea-cli/releases/tag/v1.6.0)
+[![Version](https://img.shields.io/badge/version-1.7.0-blue)](https://github.com/fanbuz/gitea-cli/releases/tag/v1.7.0)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 
 `gitea-cli` 是一个用 Rust 实现的本地命令行工具，用来把 Gitea MCP Server 暴露成可复用的 shell CLI。
@@ -27,10 +27,14 @@
 - 当 MCP 返回单条 JSON 文本内容时，自动补充 `result.parsed`
 - 保留 `mcp call` 原始出口，方便覆盖未封装的工具
 
-## Gitea MCP 1.6.0 Compatibility
+## Gitea MCP 1.7.0 Compatibility
 
-`gitea-cli 1.6.0` 对齐官方 Gitea MCP Server 1.6.0：
+`gitea-cli 1.7.0` 对齐官方 Gitea MCP Server 1.7.0：
 
+- 新增 `repos branch-rename`，封装官方新增的 `rename_branch` 工具
+- `repos file-update --new-branch` 会受益于上游修复，更新已有文件时会正确在指定新分支提交
+- 已验证 1.7.0 从 `mcp-go` 切换到官方 MCP Go SDK 后，现有 stdio 初始化、工具发现和 JSON Lines 消息仍兼容
+- 1.7.0 新增的 HTTP `--bind`、`/healthz` 与 MCP 2026-07-28 协议支持属于服务端 HTTP 部署能力；`gitea-cli` 继续通过 stdio 启动并调用服务端
 - `pulls review-comments` 的 `--review-id` 改为可选，不传时可一次读取整个 Pull Request 的 review comments
 - 新增 `pulls review-comment-reply`，回复单条 review comment
 - 新增 `pulls review-thread-resolve/review-thread-unresolve`，控制 review thread 的 resolved 状态
@@ -219,6 +223,9 @@ gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_
 
 - `gitea-cli --json repos branch-create --owner YOUR_ORG --repo YOUR_REPO --branch feature/new-command --from main`
   基于指定已有分支创建新分支，适合在自动化脚本或 agent 协作流里快速补齐分支准备动作。
+
+- `gitea-cli --json repos branch-rename --owner YOUR_ORG --repo YOUR_REPO --branch feature/old-name --new-name feature/new-name`
+  重命名指定仓库分支，对齐 Gitea MCP 1.7.0 新增的 `rename_branch` 工具。
 
 - `gitea-cli --json repos branch-delete --owner YOUR_ORG --repo YOUR_REPO --branch feature/new-command --yes`
   删除指定仓库分支，属于危险操作，必须显式传 `--yes`。
@@ -517,7 +524,7 @@ gitea-cli --json mcp call issue_read --params '{"owner":"YOUR_ORG","repo":"YOUR_
   暂未单独封装 `create repo`、`fork repo`、`search repos` 等高层命令。
 
 - [x] 分支写操作
-  已提供 `repos branch-create`、`repos branch-delete`。
+  已提供 `repos branch-create`、`repos branch-rename`、`repos branch-delete`。
 
 - [x] Release / Tag / Commit
   已提供 `releases list/latest/get/create/delete`、`tags list/get/create/delete`、`commits list/get`。

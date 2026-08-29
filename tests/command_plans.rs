@@ -380,6 +380,39 @@ fn repos_branch_create_maps_to_create_branch() {
 }
 
 #[test]
+fn repos_branch_rename_maps_to_rename_branch() {
+    let cli = Cli::try_parse_from([
+        "gitea-cli",
+        "repos",
+        "branch-rename",
+        "--owner",
+        "XINTUKJ",
+        "--repo",
+        "simba-ehr-frontend",
+        "--branch",
+        "feature/old-name",
+        "--new-name",
+        "feature/new-name",
+    ])
+    .unwrap();
+
+    let planned = plan_command(&cli).unwrap();
+
+    assert_eq!(
+        planned,
+        PlannedCommand::tool_call(
+            "rename_branch",
+            serde_json::json!({
+                "owner": "XINTUKJ",
+                "repo": "simba-ehr-frontend",
+                "branch": "feature/old-name",
+                "new_name": "feature/new-name"
+            })
+        )
+    );
+}
+
+#[test]
 fn repos_dir_maps_to_get_dir_contents() {
     let cli = Cli::try_parse_from([
         "gitea-cli",
@@ -3450,6 +3483,7 @@ fn repos_help_includes_branch_write_subcommand_descriptions() {
     let repos_help = render_help(find_subcommand(&mut root, "repos").clone());
 
     assert!(repos_help.contains("branch-create  创建仓库分支"));
+    assert!(repos_help.contains("branch-rename  重命名仓库分支"));
     assert!(repos_help.contains("branch-delete  删除仓库分支"));
     assert!(help_has_command_description(
         &repos_help,
