@@ -43,25 +43,20 @@ jobs:\r\n\
 }
 
 #[test]
-fn release_workflow_notifies_homebrew_tap_via_repository_dispatch() {
+fn release_workflow_leaves_formula_sync_to_homebrew_tap() {
     let workflow = fs::read_to_string(".github/workflows/release.yml").unwrap();
 
     assert!(
-        workflow.contains("repository_dispatch"),
-        "release workflow should notify the homebrew tap via repository_dispatch"
+        !workflow.contains("repository_dispatch"),
+        "release workflow should not depend on cross-repository dispatch"
     );
     assert!(
-        workflow.contains("fanbuz/homebrew-tap"),
-        "release workflow should target the fanbuz/homebrew-tap repository"
+        !workflow.contains("fanbuz/homebrew-tap"),
+        "formula synchronization belongs to the Homebrew tap"
     );
     assert!(
-        workflow.contains("HOMEBREW_TAP_TOKEN"),
-        "release workflow should use HOMEBREW_TAP_TOKEN for cross-repo dispatch"
-    );
-    assert!(
-        workflow.contains("\"formula_name\":\"gitea-cli\"")
-            || workflow.contains("\"formula_name\": \"gitea-cli\""),
-        "release workflow should identify the gitea-cli formula in the dispatch payload"
+        !workflow.contains("HOMEBREW_TAP_TOKEN"),
+        "release workflow should not require a long-lived tap token"
     );
 }
 
