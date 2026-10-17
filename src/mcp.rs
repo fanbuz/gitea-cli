@@ -213,41 +213,6 @@ fn summarize_tool_error(result: &Value) -> String {
         .unwrap_or_else(|| result.to_string())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::normalize_tool_call_result;
-
-    #[test]
-    fn tool_call_result_with_is_error_returns_error() {
-        let result = serde_json::json!({
-            "isError": true,
-            "content": [{
-                "type": "text",
-                "text": "issue_number is required"
-            }]
-        });
-
-        let error = normalize_tool_call_result(result).unwrap_err();
-
-        assert!(error.to_string().contains("MCP 工具返回错误"));
-        assert!(error.to_string().contains("issue_number is required"));
-    }
-
-    #[test]
-    fn tool_call_result_without_is_error_is_normalized() {
-        let result = serde_json::json!({
-            "content": [{
-                "type": "text",
-                "text": "{\"number\":524}"
-            }]
-        });
-
-        let normalized = normalize_tool_call_result(result).unwrap();
-
-        assert_eq!(normalized["parsed"], serde_json::json!({"number": 524}));
-    }
-}
-
 impl Drop for McpSession {
     fn drop(&mut self) {
         let _ = self.child.kill();
@@ -291,5 +256,40 @@ fn encode_value(value: &Value) -> String {
 
             format!("{{{}}}", parts.join(","))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::normalize_tool_call_result;
+
+    #[test]
+    fn tool_call_result_with_is_error_returns_error() {
+        let result = serde_json::json!({
+            "isError": true,
+            "content": [{
+                "type": "text",
+                "text": "issue_number is required"
+            }]
+        });
+
+        let error = normalize_tool_call_result(result).unwrap_err();
+
+        assert!(error.to_string().contains("MCP 工具返回错误"));
+        assert!(error.to_string().contains("issue_number is required"));
+    }
+
+    #[test]
+    fn tool_call_result_without_is_error_is_normalized() {
+        let result = serde_json::json!({
+            "content": [{
+                "type": "text",
+                "text": "{\"number\":524}"
+            }]
+        });
+
+        let normalized = normalize_tool_call_result(result).unwrap();
+
+        assert_eq!(normalized["parsed"], serde_json::json!({"number": 524}));
     }
 }

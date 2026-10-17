@@ -100,10 +100,10 @@ pub fn resolve_config_path(explicit: Option<&Path>) -> Result<PathBuf> {
         return expand_path(path);
     }
 
-    if let Ok(raw) = env::var(CONFIG_ENV_VAR) {
-        if !raw.trim().is_empty() {
-            return expand_path(Path::new(raw.trim()));
-        }
+    if let Ok(raw) = env::var(CONFIG_ENV_VAR)
+        && !raw.trim().is_empty()
+    {
+        return expand_path(Path::new(raw.trim()));
     }
 
     default_config_path()

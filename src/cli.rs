@@ -117,6 +117,8 @@ pub enum Command {
     Orgs(OrgsCommand),
     /// 查询仓库列表、分支和文件树
     Repos(ReposCommand),
+    /// 管理项目、列及项目 issue（Gitea v28+）
+    Projects(crate::projects::ProjectsCommand),
     /// 查询和管理仓库 release
     Releases(ReleasesCommand),
     /// 查询和管理仓库 tag
@@ -189,6 +191,22 @@ pub struct OrgsCommand {
 pub enum OrgsSubcommand {
     /// 列出当前用户可访问的组织
     List(PageArgs),
+    /// 创建组织
+    Create(OrgCreateArgs),
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct OrgCreateArgs {
+    #[arg(long)]
+    pub username: String,
+    #[arg(long)]
+    pub full_name: Option<String>,
+    #[arg(long)]
+    pub description: Option<String>,
+    #[arg(long)]
+    pub website: Option<String>,
+    #[arg(long, value_parser = ["public", "limited", "private"])]
+    pub visibility: Option<String>,
 }
 
 #[derive(Debug, Clone, Args)]
@@ -219,6 +237,8 @@ pub enum ReposSubcommand {
     FileCreate(RepoFileWriteArgs),
     /// 更新仓库文件
     FileUpdate(RepoFileUpdateArgs),
+    /// 在单次提交中创建、编辑、重命名或删除多个文件
+    FilesWrite(crate::file_write::FilesWriteArgs),
     /// 删除仓库文件
     FileDelete(RepoFileDeleteArgs),
 }
@@ -289,6 +309,16 @@ pub enum IssuesSubcommand {
     Get(IssueTargetArgs),
     /// 读取单个 issue 的评论列表
     Comments(IssueCommentsArgs),
+    /// 根据评论 ID 读取单条评论
+    CommentGet(IssueCommentGetArgs),
+    /// 列出当前 issue 的阻塞项
+    BlockedBy(IssueDependencyListArgs),
+    /// 列出被当前 issue 阻塞的项
+    Blocking(IssueDependencyListArgs),
+    /// 添加 issue 依赖
+    DependencyAdd(IssueDependencyArgs),
+    /// 删除 issue 依赖
+    DependencyRemove(IssueDependencyArgs),
     /// 按关键词跨仓库搜索 issue 或 pull request
     Search(IssueSearchArgs),
     /// 创建 issue
@@ -419,6 +449,10 @@ pub enum PullsSubcommand {
     Merge(PullMergeArgs),
     /// 读取单个 pull request 详情
     Get(PullTargetArgs),
+    /// 读取 PR 普通讨论评论
+    Comments(PullReadArgs),
+    /// 读取 CI 状态，可等待 pending 状态结束
+    Status(PullStatusArgs),
     /// 读取 pull request review 列表
     Reviews(PullTargetArgs),
     /// 读取单个 pull request review
@@ -596,6 +630,12 @@ pub struct RepoFileArgs {
     /// 是否在结果中附带逐行内容
     #[arg(long = "with-lines")]
     pub with_lines: bool,
+    /// 起始行（从 1 开始）
+    #[arg(long, value_parser = clap::value_parser!(u32).range(1..))]
+    pub start_line: Option<u32>,
+    /// 结束行（包含）
+    #[arg(long, value_parser = clap::value_parser!(u32).range(1..))]
+    pub end_line: Option<u32>,
 }
 
 #[derive(Debug, Clone, Args)]
@@ -630,6 +670,9 @@ pub struct RepoFileWriteArgs {
 
 #[derive(Debug, Clone, Args)]
 pub struct RepoFileUpdateArgs {
+    /// 精确替换数组，JSON 或 @文件；与完整内容互斥
+    #[arg(long, conflicts_with_all = ["content", "content_file"])]
+    pub edits: Option<String>,
     #[command(flatten)]
     pub write: RepoFileWriteArgs,
     /// 当前文件 SHA，用于并发保护
@@ -1150,6 +1193,39 @@ pub struct CommentFilterArgs {
 }
 
 #[derive(Debug, Clone, Args)]
+pub struct IssueCommentGetArgs {
+    #[command(flatten)]
+    pub target: RepoTargetArgs,
+    #[arg(long)]
+    pub comment_id: u64,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct IssueDependencyListArgs {
+    #[command(flatten)]
+    pub target: IssueTargetArgs,
+    #[command(flatten)]
+    pub page: PageArgs,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct IssueDependencyArgs {
+    #[command(flatten)]
+    pub target: IssueTargetArgs,
+    #[arg(long, value_parser = ["blocked_by", "blocking"])]
+    pub dependency_type: String,
+    #[arg(long)]
+    pub related_issue_number: u64,
+    #[arg(long)]
+    pub related_owner: Option<String>,
+    #[arg(long)]
+    pub related_repo: Option<String>,
+    /// 删除依赖时必须确认
+    #[arg(long)]
+    pub yes: bool,
+}
+
+#[derive(Debug, Clone, Args)]
 pub struct IssueCommentsArgs {
     #[command(flatten)]
     pub target: IssueTargetArgs,
@@ -1529,7 +1605,27 @@ pub struct PullsListArgs {
 }
 
 #[derive(Debug, Clone, Args)]
+pub struct PullReadArgs {
+    #[command(flatten)]
+    pub target: PullTargetArgs,
+    #[command(flatten)]
+    pub page: PageArgs,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct PullStatusArgs {
+    #[command(flatten)]
+    pub target: PullTargetArgs,
+    #[arg(long, value_parser = clap::value_parser!(u32).range(0..=45))]
+    pub wait_seconds: Option<u32>,
+}
+
+#[derive(Debug, Clone, Args)]
 pub struct ActionsRunsArgs {
+    #[arg(long)]
+    pub branch: Option<String>,
+    #[arg(long)]
+    pub head_sha: Option<String>,
     #[command(flatten)]
     pub target: RepoTargetArgs,
     /// 按运行状态过滤
@@ -1622,6 +1718,18 @@ pub fn plan_command(cli: &Cli) -> Result<PlannedCommand> {
         },
         Command::Me => Ok(PlannedCommand::tool_call("get_me", json!({}))),
         Command::Orgs(command) => match &command.command {
+            OrgsSubcommand::Create(args) => {
+                let mut params = Map::new();
+                params.insert("username".into(), json!(args.username));
+                insert_optional_string(&mut params, "full_name", args.full_name.as_deref());
+                insert_optional_string(&mut params, "description", args.description.as_deref());
+                insert_optional_string(&mut params, "website", args.website.as_deref());
+                insert_optional_string(&mut params, "visibility", args.visibility.as_deref());
+                Ok(PlannedCommand::tool_call(
+                    "create_organization",
+                    Value::Object(params),
+                ))
+            }
             OrgsSubcommand::List(args) => Ok(PlannedCommand::tool_call(
                 "get_user_orgs",
                 json!({
@@ -1630,6 +1738,7 @@ pub fn plan_command(cli: &Cli) -> Result<PlannedCommand> {
                 }),
             )),
         },
+        Command::Projects(command) => crate::projects::plan(command),
         Command::Repos(command) => plan_repos(command),
         Command::Releases(command) => plan_releases(command),
         Command::Tags(command) => plan_tags(command),
@@ -1724,16 +1833,21 @@ fn plan_repos(command: &ReposCommand) -> Result<PlannedCommand> {
                 "path": args.path
             }),
         )),
-        ReposSubcommand::File(args) => Ok(PlannedCommand::tool_call(
-            "get_file_contents",
-            json!({
-                "owner": args.target.owner,
-                "repo": args.target.repo,
-                "ref": args.git_ref,
-                "path": args.path,
-                "withLines": args.with_lines
-            }),
-        )),
+        ReposSubcommand::File(args) => {
+            if matches!((args.start_line, args.end_line), (Some(start), Some(end)) if start > end) {
+                bail!("--start-line 不能大于 --end-line");
+            }
+            let mut params = json!({"owner": args.target.owner, "repo": args.target.repo,
+                "ref": args.git_ref, "path": args.path, "withLines": args.with_lines});
+            if let Some(v) = args.start_line {
+                params["start_line"] = json!(v);
+            }
+            if let Some(v) = args.end_line {
+                params["end_line"] = json!(v);
+            }
+            Ok(PlannedCommand::tool_call("get_file_contents", params))
+        }
+        ReposSubcommand::FilesWrite(args) => crate::file_write::plan(args),
         ReposSubcommand::FileCreate(args) => {
             let content = resolve_repo_file_content(&args.content)?;
             let mut params = Map::new();
@@ -1754,7 +1868,14 @@ fn plan_repos(command: &ReposCommand) -> Result<PlannedCommand> {
             ))
         }
         ReposSubcommand::FileUpdate(args) => {
-            let content = resolve_repo_file_content(&args.write.content)?;
+            let payload = if let Some(raw) = &args.edits {
+                ("edits", crate::file_write::parse_edits(raw)?)
+            } else {
+                (
+                    "content",
+                    json!(resolve_repo_file_content(&args.write.content)?),
+                )
+            };
             let sha = args
                 .sha
                 .as_deref()
@@ -1764,7 +1885,7 @@ fn plan_repos(command: &ReposCommand) -> Result<PlannedCommand> {
             params.insert("repo".to_string(), json!(args.write.target.repo));
             params.insert("branch_name".to_string(), json!(args.write.branch_name));
             params.insert("path".to_string(), json!(args.write.path));
-            params.insert("content".to_string(), json!(content));
+            params.insert(payload.0.to_string(), payload.1);
             params.insert("message".to_string(), json!(args.write.message));
             params.insert("sha".to_string(), json!(sha));
             insert_optional_string(
@@ -1800,6 +1921,39 @@ fn plan_repos(command: &ReposCommand) -> Result<PlannedCommand> {
 
 fn plan_issues(command: &IssuesCommand) -> Result<PlannedCommand> {
     match &command.command {
+        IssuesSubcommand::CommentGet(args) => Ok(PlannedCommand::tool_call(
+            "issue_read",
+            json!({"method":"get_comment", "owner":args.target.owner, "repo":args.target.repo, "comment_id":args.comment_id}),
+        )),
+        IssuesSubcommand::BlockedBy(args) | IssuesSubcommand::Blocking(args) => {
+            let method = if matches!(command.command, IssuesSubcommand::BlockedBy(_)) {
+                "get_blocked_by"
+            } else {
+                "get_blocking"
+            };
+            Ok(PlannedCommand::tool_call(
+                "issue_read",
+                json!({"method":method,
+                "owner":args.target.owner,"repo":args.target.repo,"issue_number":args.target.index,
+                "page":args.page.page,"per_page":args.page.page_size}),
+            ))
+        }
+        IssuesSubcommand::DependencyAdd(args) | IssuesSubcommand::DependencyRemove(args) => {
+            let remove = matches!(command.command, IssuesSubcommand::DependencyRemove(_));
+            if remove {
+                require_yes(args.yes, "删除 issue 依赖")?;
+            }
+            let mut params = json!({"method":if remove {"remove_dependency"} else {"add_dependency"},
+                "owner":args.target.owner,"repo":args.target.repo,"issue_number":args.target.index,
+                "dependency_type":args.dependency_type,"related_issue_number":args.related_issue_number});
+            if let Some(v) = &args.related_owner {
+                params["related_owner"] = json!(v);
+            }
+            if let Some(v) = &args.related_repo {
+                params["related_repo"] = json!(v);
+            }
+            Ok(PlannedCommand::tool_call("issue_write", params))
+        }
         IssuesSubcommand::List(args) => {
             let mut params = Map::new();
             params.insert("owner".to_string(), json!(args.owner));
@@ -2448,6 +2602,19 @@ fn plan_commits(command: &CommitsCommand) -> Result<PlannedCommand> {
 
 fn plan_pulls(command: &PullsCommand) -> Result<PlannedCommand> {
     match &command.command {
+        PullsSubcommand::Comments(args) => Ok(PlannedCommand::tool_call(
+            "pull_request_read",
+            json!({
+            "method":"get_comments", "owner":args.target.owner,"repo":args.target.repo,
+            "pull_number":args.target.index,"page":args.page.page,"per_page":args.page.page_size}),
+        )),
+        PullsSubcommand::Status(args) => {
+            let mut params = json!({"method":"get_status","owner":args.target.owner,"repo":args.target.repo,"pull_number":args.target.index});
+            if let Some(v) = args.wait_seconds {
+                params["wait_seconds"] = json!(v);
+            }
+            Ok(PlannedCommand::tool_call("pull_request_read", params))
+        }
         PullsSubcommand::List(args) => {
             let mut params = Map::new();
             params.insert("owner".to_string(), json!(args.owner));
@@ -2735,6 +2902,8 @@ fn plan_actions(command: &ActionsCommand) -> Result<PlannedCommand> {
             params.insert("page".to_string(), json!(args.page.page));
             params.insert("per_page".to_string(), json!(args.page.page_size));
             insert_optional_string(&mut params, "status", args.status.as_deref());
+            insert_optional_string(&mut params, "branch", args.branch.as_deref());
+            insert_optional_string(&mut params, "head_sha", args.head_sha.as_deref());
             Ok(PlannedCommand::tool_call(
                 "actions_run_read",
                 Value::Object(params),

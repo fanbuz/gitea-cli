@@ -1492,10 +1492,26 @@ fn issues_help_includes_subcommand_descriptions() {
     let mut root = Cli::command();
     let issues_help = render_help(find_subcommand(&mut root, "issues").clone());
 
-    assert!(issues_help.contains("list            列出仓库 issue 列表"));
-    assert!(issues_help.contains("get             读取单个 issue 详情"));
-    assert!(issues_help.contains("comments        读取单个 issue 的评论列表"));
-    assert!(issues_help.contains("search          按关键词跨仓库搜索 issue 或 pull request"));
+    assert!(help_has_command_description(
+        &issues_help,
+        "list",
+        "列出仓库 issue 列表"
+    ));
+    assert!(help_has_command_description(
+        &issues_help,
+        "get",
+        "读取单个 issue 详情"
+    ));
+    assert!(help_has_command_description(
+        &issues_help,
+        "comments",
+        "读取单个 issue 的评论列表"
+    ));
+    assert!(help_has_command_description(
+        &issues_help,
+        "search",
+        "按关键词跨仓库搜索 issue 或 pull request"
+    ));
 }
 
 #[test]
@@ -2855,12 +2871,36 @@ fn issues_help_includes_phase1_subcommand_descriptions() {
     let mut root = Cli::command();
     let issues_help = render_help(find_subcommand(&mut root, "issues").clone());
 
-    assert!(issues_help.contains("create          创建 issue"));
-    assert!(issues_help.contains("update          更新 issue"));
-    assert!(issues_help.contains("comment-add     为 issue 添加评论"));
-    assert!(issues_help.contains("comment-edit    编辑 issue 评论"));
-    assert!(issues_help.contains("labels          读取 issue 当前 labels"));
-    assert!(issues_help.contains("time            读取或写入 issue time tracking"));
+    assert!(help_has_command_description(
+        &issues_help,
+        "create",
+        "创建 issue"
+    ));
+    assert!(help_has_command_description(
+        &issues_help,
+        "update",
+        "更新 issue"
+    ));
+    assert!(help_has_command_description(
+        &issues_help,
+        "comment-add",
+        "为 issue 添加评论"
+    ));
+    assert!(help_has_command_description(
+        &issues_help,
+        "comment-edit",
+        "编辑 issue 评论"
+    ));
+    assert!(help_has_command_description(
+        &issues_help,
+        "labels",
+        "读取 issue 当前 labels"
+    ));
+    assert!(help_has_command_description(
+        &issues_help,
+        "time",
+        "读取或写入 issue time tracking"
+    ));
 }
 
 #[test]
