@@ -176,3 +176,45 @@ fn renders_minimal_init_config() {
     assert!(rendered.contains("host = \"https://gitea.example.com/\""));
     assert!(rendered.contains("token_env = \"GITEA_ACCESS_TOKEN\""));
 }
+
+#[test]
+fn mcp_190_connection_options_pass_through_without_exposing_header_values() {
+    let dir = tempdir().unwrap();
+    let path = dir.path().join("config.toml");
+    fs::write(&path, r#"
+version = 1
+active_profile = "test"
+[profiles.test]
+host = "https://gitea.example.com"
+[profiles.test.mcp]
+command = "gitea-mcp-server"
+args = ["-t", "stdio", "-client-cert", "/cert.pem", "-client-key", "/key.pem", "-ca-cert", "/ca.pem"]
+[profiles.test.mcp.env]
+GITEA_EXTRA_HEADERS = '{"CF-Access-Client-Secret":"header-secret"}'
+GITEA_UNIX_SOCKET = "/gitea.sock"
+GITEA_CLIENT_CERT = "/env-cert.pem"
+GITEA_CLIENT_KEY = "/env-key.pem"
+GITEA_CA_CERT = "/env-ca.pem"
+[profiles.test.auth]
+type = "token"
+token = "test-secret"
+"#).unwrap();
+    let server = load_gitea_server_config(&path, None).unwrap();
+    assert_eq!(
+        server.env["GITEA_EXTRA_HEADERS"],
+        r#"{"CF-Access-Client-Secret":"header-secret"}"#
+    );
+    assert_eq!(server.env["GITEA_UNIX_SOCKET"], "/gitea.sock");
+    for (key, value) in [
+        ("GITEA_CLIENT_CERT", "/env-cert.pem"),
+        ("GITEA_CLIENT_KEY", "/env-key.pem"),
+        ("GITEA_CA_CERT", "/env-ca.pem"),
+    ] {
+        assert_eq!(server.env[key], value);
+    }
+    assert!(server.args.contains(&"-client-key".to_string()));
+    let view = serde_json::to_string(&load_config_view(&path, None).unwrap()).unwrap();
+    assert!(view.contains("GITEA_EXTRA_HEADERS"));
+    assert!(!view.contains("header-secret"));
+    assert!(!view.contains("test-secret"));
+}

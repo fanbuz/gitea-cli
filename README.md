@@ -1,6 +1,6 @@
 # gitea-cli
 
-[![Version](https://img.shields.io/badge/version-1.7.0-blue)](https://github.com/fanbuz/gitea-cli/releases/tag/v1.7.0)
+[![Version](https://img.shields.io/badge/version-1.9.0-blue)](https://github.com/fanbuz/gitea-cli/releases/tag/v1.9.0)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 
 `gitea-cli` 是一个用 Rust 实现的本地命令行工具，用来把 Gitea MCP Server 暴露成可复用的 shell CLI。
@@ -26,6 +26,84 @@
 - 提供 release 与 tag 的创建、删除高层命令，覆盖常见版本对象写操作
 - 当 MCP 返回单条 JSON 文本内容时，自动补充 `result.parsed`
 - 保留 `mcp call` 原始出口，方便覆盖未封装的工具
+
+## Gitea MCP 1.9.0 Compatibility
+
+`gitea-cli 1.9.0` 对齐 [Gitea MCP Server 1.9.0](https://gitea.com/gitea/gitea-mcp/releases/tag/v1.9.0)，同时覆盖 1.8.x 的新增工具能力：
+
+- `orgs create`：创建组织，支持完整名称、描述、网站与可见性。
+- `projects`：读取与管理用户、组织及仓库项目、列和项目 issue；**目标 Gitea 实例必须为 v28+**。
+- `repos file --start-line/--end-line`：读取指定行区间；`file-update --edits`：精确文本替换。
+- `repos files-write`：单次提交多个文件，支持创建、更新、编辑、重命名和删除；包含删除时必须传 `--yes`。
+- `issues comment-get/blocked-by/blocking/dependency-add/dependency-remove`：单条评论读取与 issue 依赖。
+- `pulls comments/status`：普通讨论评论及 CI 状态，可通过 `--wait-seconds 0..45` 等待。
+- `actions runs --branch/--head-sha`：按分支与完整提交 SHA 筛选。
+- 配置可透传 mTLS、自定义 CA、额外 HTTP 请求头和 Unix socket 参数。OAuth 授权与 HTTP healthcheck 属于服务端 HTTP 模式，CLI 仍使用 stdio。
+
+### 1.9.0 命令示例
+
+```bash
+gitea-cli orgs create --username my-team --full-name "My Team" --visibility private
+gitea-cli repos file --owner OWNER --repo REPO --path README.md --start-line 10 --end-line 30 --with-lines
+gitea-cli repos file-update --owner OWNER --repo REPO --path README.md --branch main --sha CURRENT_SHA --message "Update title" --edits '[{"old_string":"Old title","new_string":"New title"}]'
+gitea-cli repos files-write --owner OWNER --repo REPO --branch main --new-branch feature/docs --message "Update docs" --files @files.json --yes
+gitea-cli issues comment-get --owner OWNER --repo REPO --comment-id 123
+gitea-cli issues blocked-by --owner OWNER --repo REPO --index 12
+gitea-cli issues blocking --owner OWNER --repo REPO --index 12
+gitea-cli issues dependency-add --owner OWNER --repo REPO --index 12 --dependency-type blocked_by --related-issue-number 8
+gitea-cli issues dependency-remove --owner OWNER --repo REPO --index 12 --dependency-type blocked_by --related-issue-number 8 --yes
+gitea-cli pulls comments --owner OWNER --repo REPO --index 12
+gitea-cli pulls status --owner OWNER --repo REPO --index 12 --wait-seconds 30
+gitea-cli actions runs --owner OWNER --repo REPO --branch main --head-sha FULL_COMMIT_SHA
+```
+
+`--edits` 与 `--files` 接受 JSON 或 `@本地文件`。内容是原始文本，不是 base64；`content` 与 `edits` 互斥。`files.json` 示例：
+
+```json
+[
+  {"path":"docs/new.md","content":"# New document\n"},
+  {"path":"README.md","edits":[{"old_string":"Old title","new_string":"New title","replace_all":false}]},
+  {"path":"docs/renamed.md","from_path":"docs/old.md","sha":"SOURCE_SHA"},
+  {"path":"docs/obsolete.md","delete":true,"sha":"CURRENT_SHA"}
+]
+```
+
+已有文件完整替换要提供 `sha`，否则表示创建；重命名使用源文件 SHA，删除使用当前文件 SHA。批量 `edits` 由服务端读取当前内容和 SHA，可另传 `sha` 做预期版本校验；原有 `file-update` 始终要求显式 `--sha`。替换文本默认必须唯一匹配，重复文本需显式 `replace_all: true`。同一批次不能重复涉及同一路径。
+
+跨仓库依赖可增加 `--related-owner` 与 `--related-repo`；`blocked_by` 表示当前 issue 被关联 issue 阻塞，`blocking` 表示当前 issue 阻塞关联 issue。
+
+项目命令默认操作当前用户项目，可指定 `--org ORG`，或成对指定 `--owner OWNER --repo REPO`；三种范围互斥：
+
+```bash
+gitea-cli projects list --org ORG --state open
+gitea-cli projects create --org ORG --title "Delivery" --template-type basic_kanban
+gitea-cli projects get --org ORG --project-id 1
+gitea-cli projects update --org ORG --project-id 1 --state closed
+gitea-cli projects columns --org ORG --project-id 1
+gitea-cli projects column-create --org ORG --project-id 1 --title Todo
+gitea-cli projects column-update --org ORG --project-id 1 --column-id 2 --title Done
+gitea-cli projects column-issues --org ORG --project-id 1 --column-id 2
+gitea-cli projects issue-add --org ORG --project-id 1 --issue-id 123 --column-id 2
+gitea-cli projects issue-remove --org ORG --project-id 1 --issue-id 123 --yes
+gitea-cli projects column-delete --org ORG --project-id 1 --column-id 2 --yes
+gitea-cli projects delete --org ORG --project-id 1 --yes
+```
+
+`--issue-id` 是 issue 全局 ID，不是仓库内编号；`issue-add` 也可将项目内已有 issue 移动到指定列。
+
+### 连接配置透传
+
+在已有 profile 的 `[profiles.default.mcp.env]` 下按需添加：
+
+```toml
+GITEA_CLIENT_CERT = "/path/to/client-cert.pem"
+GITEA_CLIENT_KEY = "/path/to/client-key.pem"
+GITEA_CA_CERT = "/path/to/ca-bundle.pem"
+GITEA_EXTRA_HEADERS = '{"CF-Access-Client-Id":"YOUR_CLIENT_ID","CF-Access-Client-Secret":"YOUR_CLIENT_SECRET"}'
+# GITEA_UNIX_SOCKET = "/path/to/gitea.sock"
+```
+
+也可通过 `mcp.args` 传入 `-client-cert`、`-client-key`、`-ca-cert`、`-gitea-unix-socket`；证书与私钥需成对配置。额外请求头支持 Cloudflare Access 等认证代理。`config show` / `doctor` 只展示环境变量名称，不展示这些变量值。Homebrew 1.9.0 包的服务端可能报告 `dev`，请同时核对安装版本及实际工具契约。
 
 ## Gitea MCP 1.7.0 Compatibility
 
