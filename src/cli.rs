@@ -293,6 +293,12 @@ pub enum CommitsSubcommand {
     List(CommitsListArgs),
     /// 按 SHA 读取单个 commit 详情
     Get(CommitTargetArgs),
+    /// 比较两个分支、tag 或提交之间的 commits 和文件变更
+    Compare(CommitCompareArgs),
+    /// 读取提交、分支或 tag 的汇总状态及各检查结果
+    Status(CommitStatusArgs),
+    /// 为提交创建 CI 或审查状态
+    StatusCreate(CommitStatusCreateArgs),
 }
 
 #[derive(Debug, Clone, Args)]
@@ -307,6 +313,8 @@ pub enum IssuesSubcommand {
     List(IssuesListArgs),
     /// 读取单个 issue 详情
     Get(IssueTargetArgs),
+    /// 列出仓库可指派的用户
+    AssigneeCandidates(RepoTargetArgs),
     /// 读取单个 issue 的评论列表
     Comments(IssueCommentsArgs),
     /// 根据评论 ID 读取单条评论
@@ -449,6 +457,14 @@ pub enum PullsSubcommand {
     Merge(PullMergeArgs),
     /// 读取单个 pull request 详情
     Get(PullTargetArgs),
+    /// 列出 PR 的 commits
+    Commits(PullReadArgs),
+    /// 按源分支和目标分支查找 PR
+    ByBranches(PullByBranchesArgs),
+    /// 按 commit SHA 查找关联 PR
+    ByCommit(PullByCommitArgs),
+    /// 列出仓库可请求审查的用户
+    ReviewerCandidates(RepoTargetArgs),
     /// 读取 PR 普通讨论评论
     Comments(PullReadArgs),
     /// 读取 CI 状态，可等待 pending 状态结束
@@ -505,6 +521,16 @@ pub enum ActionsSubcommand {
     Cancel(ActionsRunTargetArgs),
     /// 重跑指定 run
     Rerun(ActionsRunTargetArgs),
+    /// 重跑指定 run 中的一个 job
+    RerunJob(ActionsRerunJobArgs),
+    /// 仅重跑指定 run 中失败的 jobs
+    RerunFailedJobs(ActionsRunTargetArgs),
+    /// 批准等待审批的 run（Gitea 1.28+）
+    Approve(ActionsRunTargetArgs),
+    /// 启用 workflow
+    WorkflowEnable(ActionsWorkflowTargetArgs),
+    /// 禁用 workflow
+    WorkflowDisable(ActionsWorkflowTargetArgs),
 }
 
 #[derive(Debug, Clone, Args)]
@@ -762,6 +788,9 @@ pub struct RepoLabelCreateArgs {
     /// 创建归档 label
     #[arg(long)]
     pub archived: bool,
+    /// 与同一 scope 的其他标签互斥
+    #[arg(long)]
+    pub exclusive: bool,
 }
 
 #[derive(Debug, Clone, Args)]
@@ -783,6 +812,9 @@ pub struct RepoLabelEditArgs {
     /// 是否归档，显式传 true 或 false
     #[arg(long)]
     pub archived: Option<bool>,
+    /// 是否互斥，显式传 true 或 false
+    #[arg(long)]
+    pub exclusive: Option<bool>,
 }
 
 #[derive(Debug, Clone, Args)]
@@ -1031,6 +1063,49 @@ pub struct CommitTargetArgs {
     /// Commit SHA
     #[arg(long)]
     pub sha: String,
+    /// 同时返回 unified diff
+    #[arg(long)]
+    pub include_diff: bool,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct CommitCompareArgs {
+    #[command(flatten)]
+    pub target: RepoTargetArgs,
+    /// 基准分支、tag 或 SHA
+    #[arg(long)]
+    pub base: String,
+    /// 目标分支、tag 或 SHA
+    #[arg(long)]
+    pub head: String,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct CommitStatusArgs {
+    #[command(flatten)]
+    pub target: RepoTargetArgs,
+    /// Commit SHA、分支或 tag
+    #[arg(long = "ref")]
+    pub git_ref: String,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct CommitStatusCreateArgs {
+    #[command(flatten)]
+    pub target: RepoTargetArgs,
+    /// Commit SHA
+    #[arg(long)]
+    pub sha: String,
+    #[arg(long, value_parser = ["pending", "success", "error", "failure", "warning"])]
+    pub state: String,
+    /// 检查名称，例如 ci/build
+    #[arg(long)]
+    pub context: Option<String>,
+    #[arg(long)]
+    pub description: Option<String>,
+    /// 检查详情链接
+    #[arg(long)]
+    pub target_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Args)]
@@ -1488,6 +1563,18 @@ pub struct PullCreateArgs {
     /// Label ID，可重复传入
     #[arg(long = "label-id")]
     pub label_ids: Vec<u64>,
+    /// 指派用户，可重复传入
+    #[arg(long = "assignee")]
+    pub assignees: Vec<String>,
+    /// Milestone 编号
+    #[arg(long)]
+    pub milestone: Option<u64>,
+    /// Reviewer 用户名，可重复传入
+    #[arg(long = "reviewer")]
+    pub reviewers: Vec<String>,
+    /// Reviewer 团队，可重复传入
+    #[arg(long = "team-reviewer")]
+    pub team_reviewers: Vec<String>,
     /// 是否创建为 draft
     #[arg(long)]
     pub draft: bool,
@@ -1613,6 +1700,24 @@ pub struct PullReadArgs {
 }
 
 #[derive(Debug, Clone, Args)]
+pub struct PullByBranchesArgs {
+    #[command(flatten)]
+    pub target: RepoTargetArgs,
+    #[arg(long)]
+    pub base: String,
+    #[arg(long)]
+    pub head: String,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct PullByCommitArgs {
+    #[command(flatten)]
+    pub target: RepoTargetArgs,
+    #[arg(long)]
+    pub sha: String,
+}
+
+#[derive(Debug, Clone, Args)]
 pub struct PullStatusArgs {
     #[command(flatten)]
     pub target: PullTargetArgs,
@@ -1699,6 +1804,23 @@ pub struct ActionsRunTargetArgs {
     /// Workflow run ID
     #[arg(long = "run-id")]
     pub run_id: u64,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct ActionsRerunJobArgs {
+    #[command(flatten)]
+    pub target: ActionsRunTargetArgs,
+    #[arg(long)]
+    pub job_id: u64,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct ActionsWorkflowTargetArgs {
+    #[command(flatten)]
+    pub target: RepoTargetArgs,
+    /// Workflow ID 或文件名
+    #[arg(long)]
+    pub workflow_id: String,
 }
 
 pub fn plan_command(cli: &Cli) -> Result<PlannedCommand> {
@@ -1921,6 +2043,10 @@ fn plan_repos(command: &ReposCommand) -> Result<PlannedCommand> {
 
 fn plan_issues(command: &IssuesCommand) -> Result<PlannedCommand> {
     match &command.command {
+        IssuesSubcommand::AssigneeCandidates(args) => Ok(PlannedCommand::tool_call(
+            "issue_read",
+            json!({"method": "get_assignee_candidates", "owner": args.owner, "repo": args.repo}),
+        )),
         IssuesSubcommand::CommentGet(args) => Ok(PlannedCommand::tool_call(
             "issue_read",
             json!({"method":"get_comment", "owner":args.target.owner, "repo":args.target.repo, "comment_id":args.comment_id}),
@@ -2064,7 +2190,7 @@ fn plan_issues(command: &IssuesCommand) -> Result<PlannedCommand> {
                 "owner": args.target.owner,
                 "repo": args.target.repo,
                 "issue_number": args.target.index,
-                "commentID": args.comment_id,
+                "comment_id": args.comment_id,
                 "body": args.body
             }),
         )),
@@ -2318,6 +2444,9 @@ fn plan_labels(command: &LabelsCommand) -> Result<PlannedCommand> {
             if args.archived {
                 params.insert("is_archived".to_string(), json!(true));
             }
+            if args.exclusive {
+                params.insert("exclusive".to_string(), json!(true));
+            }
             Ok(PlannedCommand::tool_call(
                 "label_write",
                 Value::Object(params),
@@ -2333,6 +2462,7 @@ fn plan_labels(command: &LabelsCommand) -> Result<PlannedCommand> {
             insert_optional_string(&mut params, "color", args.color.as_deref());
             insert_optional_string(&mut params, "description", args.description.as_deref());
             insert_optional_bool(&mut params, "is_archived", args.archived);
+            insert_optional_bool(&mut params, "exclusive", args.exclusive);
             Ok(PlannedCommand::tool_call(
                 "label_write",
                 Value::Object(params),
@@ -2589,19 +2719,64 @@ fn plan_commits(command: &CommitsCommand) -> Result<PlannedCommand> {
                 Value::Object(params),
             ))
         }
-        CommitsSubcommand::Get(args) => Ok(PlannedCommand::tool_call(
-            "get_commit",
-            json!({
+        CommitsSubcommand::Get(args) => {
+            let mut params = json!({
                 "owner": args.owner,
                 "repo": args.repo,
                 "sha": args.sha
-            }),
+            });
+            if args.include_diff {
+                params["include_diff"] = json!(true);
+            }
+            Ok(PlannedCommand::tool_call("get_commit", params))
+        }
+        CommitsSubcommand::Compare(args) => Ok(PlannedCommand::tool_call(
+            "compare_commits",
+            json!({"owner": args.target.owner, "repo": args.target.repo,
+                "base": args.base, "head": args.head}),
         )),
+        CommitsSubcommand::Status(args) => Ok(PlannedCommand::tool_call(
+            "get_commit_status",
+            json!({"owner": args.target.owner, "repo": args.target.repo, "ref": args.git_ref}),
+        )),
+        CommitsSubcommand::StatusCreate(args) => {
+            let mut params = Map::new();
+            params.insert("owner".to_string(), json!(args.target.owner));
+            params.insert("repo".to_string(), json!(args.target.repo));
+            params.insert("sha".to_string(), json!(args.sha));
+            params.insert("state".to_string(), json!(args.state));
+            insert_optional_string(&mut params, "context", args.context.as_deref());
+            insert_optional_string(&mut params, "description", args.description.as_deref());
+            insert_optional_string(&mut params, "target_url", args.target_url.as_deref());
+            Ok(PlannedCommand::tool_call(
+                "create_commit_status",
+                Value::Object(params),
+            ))
+        }
     }
 }
 
 fn plan_pulls(command: &PullsCommand) -> Result<PlannedCommand> {
     match &command.command {
+        PullsSubcommand::Commits(args) => Ok(PlannedCommand::tool_call(
+            "pull_request_read",
+            json!({"method": "get_commits", "owner": args.target.owner, "repo": args.target.repo,
+                "pull_number": args.target.index, "page": args.page.page, "per_page": args.page.page_size}),
+        )),
+        PullsSubcommand::ByBranches(args) => Ok(PlannedCommand::tool_call(
+            "pull_request_read",
+            json!({"method": "get_by_branches", "owner": args.target.owner, "repo": args.target.repo,
+                "base": args.base, "head": args.head}),
+        )),
+        PullsSubcommand::ByCommit(args) => Ok(PlannedCommand::tool_call(
+            "pull_request_read",
+            json!({"method": "get_by_commit", "owner": args.target.owner, "repo": args.target.repo,
+                "sha": args.sha}),
+        )),
+        PullsSubcommand::ReviewerCandidates(args) => Ok(PlannedCommand::tool_call(
+            "pull_request_read",
+            json!({"method": "get_reviewer_candidates", "owner": args.owner, "repo": args.repo}),
+        )),
         PullsSubcommand::Comments(args) => Ok(PlannedCommand::tool_call(
             "pull_request_read",
             json!({
@@ -2643,6 +2818,10 @@ fn plan_pulls(command: &PullsCommand) -> Result<PlannedCommand> {
             params.insert("title".to_string(), json!(args.title));
             insert_optional_string(&mut params, "body", args.body.as_deref());
             insert_optional_u64_list(&mut params, "labels", &args.label_ids);
+            insert_optional_string_list(&mut params, "assignees", &args.assignees);
+            insert_optional_u64(&mut params, "milestone", args.milestone);
+            insert_optional_string_list(&mut params, "reviewers", &args.reviewers);
+            insert_optional_string_list(&mut params, "team_reviewers", &args.team_reviewers);
             insert_optional_string(&mut params, "deadline", args.deadline.as_deref());
             if args.draft {
                 params.insert("draft".to_string(), json!(true));
@@ -2990,6 +3169,31 @@ fn plan_actions(command: &ActionsCommand) -> Result<PlannedCommand> {
                 "repo": args.target.repo,
                 "run_id": args.run_id
             }),
+        )),
+        ActionsSubcommand::RerunJob(args) => Ok(PlannedCommand::tool_call(
+            "actions_run_write",
+            json!({"method": "rerun_job", "owner": args.target.target.owner,
+                "repo": args.target.target.repo, "run_id": args.target.run_id, "job_id": args.job_id}),
+        )),
+        ActionsSubcommand::RerunFailedJobs(args) => Ok(PlannedCommand::tool_call(
+            "actions_run_write",
+            json!({"method": "rerun_failed_jobs", "owner": args.target.owner,
+                "repo": args.target.repo, "run_id": args.run_id}),
+        )),
+        ActionsSubcommand::Approve(args) => Ok(PlannedCommand::tool_call(
+            "actions_run_write",
+            json!({"method": "approve_run", "owner": args.target.owner,
+                "repo": args.target.repo, "run_id": args.run_id}),
+        )),
+        ActionsSubcommand::WorkflowEnable(args) => Ok(PlannedCommand::tool_call(
+            "actions_run_write",
+            json!({"method": "enable_workflow", "owner": args.target.owner,
+                "repo": args.target.repo, "workflow_id": args.workflow_id}),
+        )),
+        ActionsSubcommand::WorkflowDisable(args) => Ok(PlannedCommand::tool_call(
+            "actions_run_write",
+            json!({"method": "disable_workflow", "owner": args.target.owner,
+                "repo": args.target.repo, "workflow_id": args.workflow_id}),
         )),
     }
 }
