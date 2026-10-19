@@ -2401,7 +2401,7 @@ fn issues_comment_edit_maps_to_issue_write_edit_comment() {
                 "owner": "XINTUKJ",
                 "repo": "simba-ehr-frontend",
                 "issue_number": 524,
-                "commentID": 88,
+                "comment_id": 88,
                 "body": "edited body"
             })
         )

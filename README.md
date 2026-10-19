@@ -1,6 +1,6 @@
 # gitea-cli
 
-[![Version](https://img.shields.io/badge/version-1.9.0-blue)](https://github.com/fanbuz/gitea-cli/releases/tag/v1.9.0)
+[![Version](https://img.shields.io/badge/version-1.10.0-blue)](https://github.com/fanbuz/gitea-cli/releases/tag/v1.10.0)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 
 `gitea-cli` 是一个用 Rust 实现的本地命令行工具，用来把 Gitea MCP Server 暴露成可复用的 shell CLI。
@@ -26,6 +26,44 @@
 - 提供 release 与 tag 的创建、删除高层命令，覆盖常见版本对象写操作
 - 当 MCP 返回单条 JSON 文本内容时，自动补充 `result.parsed`
 - 保留 `mcp call` 原始出口，方便覆盖未封装的工具
+
+## Gitea MCP 1.10.0 Compatibility
+
+`gitea-cli 1.10.0` 对齐 [Gitea MCP Server 1.10.0](https://gitea.com/gitea/gitea-mcp/releases/tag/v1.10.0)，在原有能力基础上新增：
+
+- `commits compare`：比较两个分支、tag 或 SHA，返回 head 相对 base 新增的提交及涉及的文件。
+- `commits get --include-diff`：读取单个提交时附带 unified diff；默认保持原有输出。
+- `commits status` / `status-create`：读取汇总状态及各 context 的最新结果，或创建提交状态。
+- `pulls commits` / `by-branches` / `by-commit`：读取 PR 提交列表，或按分支对、提交定位 PR。
+- `pulls reviewer-candidates` / `issues assignee-candidates`：读取仓库可审查、可指派的用户，无需 issue 或 PR 编号。
+- `pulls create --assignee/--milestone/--reviewer/--team-reviewer`：在创建时传递人员、团队与里程碑。
+- `actions rerun-job` / `rerun-failed-jobs` / `approve` / `workflow-enable` / `workflow-disable`：单 job 重跑、失败 jobs 重跑、run 审批及 workflow 启停。**`approve` 要求目标 Gitea 1.28+**。
+- `issues comment-edit` 改用 `comment_id`；MCP 1.10.0 仍接受旧的 `commentID`。
+- `labels repo-create --exclusive` / `repo-edit --exclusive true|false`：创建或修改仓库互斥标签。
+
+```bash
+gitea-cli commits compare --owner OWNER --repo REPO --base main --head feature/docs
+gitea-cli commits get --owner OWNER --repo REPO --sha COMMIT_SHA --include-diff
+gitea-cli commits status --owner OWNER --repo REPO --ref main
+gitea-cli commits status-create --owner OWNER --repo REPO --sha COMMIT_SHA --state success --context ci/build --description "Build passed" --target-url https://ci.example.com/build/123
+gitea-cli pulls commits --owner OWNER --repo REPO --index 12 --page 1 --page-size 30
+gitea-cli pulls by-branches --owner OWNER --repo REPO --base main --head feature/docs
+gitea-cli pulls by-commit --owner OWNER --repo REPO --sha COMMIT_SHA
+gitea-cli pulls reviewer-candidates --owner OWNER --repo REPO
+gitea-cli issues assignee-candidates --owner OWNER --repo REPO
+gitea-cli pulls create --owner OWNER --repo REPO --head feature/docs --base main --title "Update docs" --assignee alice --milestone 2 --reviewer bob --team-reviewer maintainers
+gitea-cli actions rerun-job --owner OWNER --repo REPO --run-id 123 --job-id 456
+gitea-cli actions rerun-failed-jobs --owner OWNER --repo REPO --run-id 123
+gitea-cli actions approve --owner OWNER --repo REPO --run-id 123
+gitea-cli actions workflow-enable --owner OWNER --repo REPO --workflow-id build.yml
+gitea-cli actions workflow-disable --owner OWNER --repo REPO --workflow-id build.yml
+gitea-cli labels repo-create --owner OWNER --repo REPO --name priority/high --color '#ff0000' --exclusive
+gitea-cli labels repo-edit --owner OWNER --repo REPO --id 6 --exclusive false
+```
+
+提交状态支持 `pending`、`success`、`error`、`failure`、`warning`；读取状态的 `--ref` 接受 SHA、分支或 tag。`rerun-job` 必须同时提供 `--run-id` 和 `--job-id`；workflow 启停使用 ID 或文件名，无需 run ID。PR 创建的人员与团队参数可重复传入，未指定的可选字段不发送。`by-commit` 依赖目标 Gitea 已记录的提交与 PR 关联；未记录关联的提交会返回不存在。`by-branches` 直接返回服务端选出的 PR；同一分支对重复使用时，可能返回已关闭的历史 PR。
+
+MCP 1.10.0 修复了 PR 创建时忽略 assignees、milestone、reviewers，以及仓库标签创建/编辑忽略 `exclusive` 的问题；CLI 为仓库标签补充了对应参数。服务端还将日志统一输出到 stderr，修复 `-d` 调试日志干扰 stdio 消息的问题。仓库列表返回精简对象，CLI 透明保留服务端结果；依赖完整字段的脚本应核对实际输出。上述新增命令及 `comment_id` 参数需要 MCP 1.10.0；目标 Gitea 版本或权限不足时，CLI 会返回服务端错误。
 
 ## Gitea MCP 1.9.0 Compatibility
 

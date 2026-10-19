@@ -20,7 +20,9 @@ Thanks for your interest in contributing to `gitea-cli`.
 ## Local checks
 
 ```bash
-python3 -m unittest discover -s tests -v
+cargo fmt --check
+cargo test --locked
+cargo clippy --locked --all-targets -- -D warnings
 ```
 
 If you add a new command, include:
